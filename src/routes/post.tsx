@@ -2,9 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { SignedImage } from "@/components/SignedImage";
+import { Image as ImageIcon, Sparkles, Lock, Coins } from "lucide-react";
+import { ActionSlider } from "@/components/ActionSlider";
 import { uploadMedia } from "@/lib/media";
 
 export const Route = createFileRoute("/post")({ component: PostPage });
+
+type Kind = "public" | "subscribers" | "ppv";
 
 function PostPage() {
   const { session, profile, refresh } = useAuth();
@@ -13,22 +18,17 @@ function PostPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [tagsInput, setTagsInput] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "subscribers" | "ppv">("subscribers");
-  const [price, setPrice] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [kind, setKind] = useState<Kind>("subscribers");
+  const [priceCents, setPriceCents] = useState(500);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => { if (session === null) nav({ to: "/auth" as string as any }); }, [session, nav]);
 
-  const onFile = (f: File) => {
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
-  };
+  const onFile = (f: File) => { setFile(f); setPreview(URL.createObjectURL(f)); };
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file || !session) return;
-    setBusy(true); setErr(null);
+  const publish = async () => {
+    if (!file || !session) throw new Error("no file");
+    setErr(null);
     try {
       const path = await uploadMedia(file, session.user.id);
       const hashtags = tagsInput.split(/[\s,]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean);
@@ -36,11 +36,10 @@ function PostPage() {
         creator_id: session.user.id,
         description, hashtags, media_url: path,
         media_type: file.type.startsWith("video") ? "video" : "image",
-        visibility,
-        ppv_price_cents: visibility === "ppv" ? Math.round(Number(price) * 100) : 0,
+        visibility: kind,
+        ppv_price_cents: kind === "ppv" ? priceCents : 0,
       });
       if (error) throw error;
-      // Mark user as creator on first post
       if (!profile?.is_creator) {
         await supabase.from("profiles").update({ is_creator: true }).eq("id", session.user.id);
         await refresh();
@@ -48,32 +47,71 @@ function PostPage() {
       nav({ to: "/" as string as any });
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : String(e));
-    } finally { setBusy(false); }
+      throw e;
+    }
   };
+
+  const kinds: { id: Kind; icon: typeof Sparkles; title: string; desc: string }[] = [
+    { id: "public", icon: Sparkles, title: "Public", desc: "Visible par tous les utilisateurs de Hush." },
+    { id: "subscribers", icon: Lock, title: "Abonnés", desc: "Réservé à vos abonnés payants." },
+    { id: "ppv", icon: Coins, title: "Payant", desc: "Contenu débloqué à l'unité, prix libre." },
+  ];
 
   return (
     <div className="mx-auto max-w-lg px-4 pt-6">
       <h1 className="mb-6 text-3xl font-bold">Publier</h1>
-      <form onSubmit={submit} className="space-y-4">
-        <label className="flex aspect-square w-full cursor-pointer items-center justify-center overflow-hidden rounded-3xl border-2 border-dashed border-border bg-card">
-          {preview ? <img src={preview} className="h-full w-full object-cover" alt="" /> : <span className="text-sm text-muted-foreground">Choisir une photo (galerie ou appareil)</span>}
-          <input type="file" accept="image/*,video/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
-        </label>
-        <textarea placeholder="Description" className="w-full rounded-2xl border border-border bg-card px-4 py-3" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <input placeholder="#tags (séparés par des espaces)" className="w-full rounded-2xl border border-border bg-card px-4 py-3" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} />
-        <div className="flex gap-2">
-          {(["public", "subscribers", "ppv"] as const).map((v) => (
-            <button type="button" key={v} onClick={() => setVisibility(v)} className={`flex-1 rounded-full py-2 text-xs font-semibold ${visibility === v ? "bg-primary text-primary-foreground" : "border border-border bg-card"}`}>
-              {v === "public" ? "Public" : v === "subscribers" ? "Abonnés" : "Payant"}
-            </button>
-          ))}
-        </div>
-        {visibility === "ppv" && (
-          <input type="number" min="0.5" step="0.5" placeholder="Prix en €" required className="w-full rounded-2xl border border-border bg-card px-4 py-3" value={price} onChange={(e) => setPrice(e.target.value)} />
+
+      <label className="mb-4 flex aspect-square w-full cursor-pointer items-center justify-center overflow-hidden rounded-3xl border-2 border-dashed border-border bg-card">
+        {preview ? <img src={preview} className="h-full w-full object-cover" alt="" /> : (
+          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <ImageIcon className="h-8 w-8" />
+            <span className="text-sm">Choisir un média</span>
+          </div>
         )}
-        {err && <p className="text-sm text-destructive">{err}</p>}
-        <button disabled={!file || busy} className="w-full rounded-full bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-50">{busy ? "Publication…" : "Publier"}</button>
-      </form>
+        <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+      </label>
+
+      <textarea placeholder="Décrivez votre publication…" className="mb-3 w-full rounded-2xl border border-border bg-card px-4 py-3" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <input placeholder="#hashtags (séparés par des espaces)" className="mb-6 w-full rounded-2xl border border-border bg-card px-4 py-3" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} />
+
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Visibilité</p>
+      <div className="mb-6 space-y-2">
+        {kinds.map((k) => {
+          const Icon = k.icon;
+          const active = kind === k.id;
+          return (
+            <button
+              key={k.id} type="button" onClick={() => setKind(k.id)}
+              className={`flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition-all ${active ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border bg-card hover:bg-secondary"}`}
+            >
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <p className="font-bold">{k.title}</p>
+                <p className="text-xs text-muted-foreground">{k.desc}</p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {kind === "ppv" && (
+        <div className="mb-6 rounded-3xl border border-border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-semibold">Prix</p>
+            <p className="text-2xl font-bold tabular-nums">{(priceCents / 100).toFixed(2)} €</p>
+          </div>
+          <input type="range" min={50} max={10000} step={50} value={priceCents} onChange={(e) => setPriceCents(Number(e.target.value))} className="w-full accent-[var(--primary)]" />
+          <div className="mt-1 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+            <span>0,50 €</span><span>100 €</span>
+          </div>
+        </div>
+      )}
+
+      {err && <p className="mb-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">{err}</p>}
+
+      <ActionSlider label="Glissez pour publier" onConfirm={publish} disabled={!file} />
     </div>
   );
 }
