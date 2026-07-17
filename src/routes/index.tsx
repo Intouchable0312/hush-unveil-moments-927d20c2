@@ -69,33 +69,44 @@ function Home() {
   const cursorRef = useRef(0);
   const loadingPageRef = useRef(false);
   const feedEndRef = useRef<HTMLDivElement>(null);
+  const feedLoadIdRef = useRef(0);
+  const userId = session?.user.id;
 
   useEffect(() => { if (ready && !session) nav({ to: "/auth" as string as any }); }, [ready, session, nav]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!userId) return;
     let alive = true;
+    const loadId = ++feedLoadIdRef.current;
     (async () => {
       setPosts(null);
       setHasMore(true);
       cursorRef.current = 0;
       try {
-        const firstPage = await fetchFeedPage(0);
-        if (!alive) return;
+        const [firstPage, subsResult, purchasesResult] = await Promise.all([
+          fetchFeedPage(0),
+          supabase.from("subscriptions").select("creator_id").eq("fan_id", userId).eq("active", true),
+          supabase.from("post_purchases").select("post_id").eq("buyer_id", userId),
+        ]);
+        if (!alive || feedLoadIdRef.current !== loadId) return;
         setPosts(firstPage.posts);
         setHasMore(firstPage.hasMore);
         cursorRef.current = firstPage.posts.length;
+        setSubs(new Set((subsResult.data ?? []).map((r) => r.creator_id)));
+        setPurchases(new Set((purchasesResult.data ?? []).map((r) => r.post_id)));
       } catch (error) {
         console.error("Impossible de charger le feed", error);
-        if (alive) setPosts([]);
+        if (alive && feedLoadIdRef.current === loadId) setPosts([]);
       }
-      const { data: s } = await supabase.from("subscriptions").select("creator_id").eq("fan_id", session.user.id).eq("active", true);
-      if (!alive) return;
-      setSubs(new Set((s ?? []).map((r) => r.creator_id)));
-      const { data: p } = await supabase.from("post_purchases").select("post_id").eq("buyer_id", session.user.id);
-      if (!alive) return;
-      setPurchases(new Set((p ?? []).map((r) => r.post_id)));
-      const { data: cs } = await supabase.from("profiles").select("id,username,avatar_url,hashtags").eq("is_creator", true).neq("id", session.user.id).limit(30);
+    })();
+    return () => { alive = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    (async () => {
+      const { data: cs } = await supabase.from("profiles").select("id,username,avatar_url,hashtags").eq("is_creator", true).neq("id", userId).limit(30);
       if (!alive) return;
       const mine = new Set((profile?.hashtags ?? []).map((h) => h.toLowerCase()));
       const scored: Creator[] = (cs ?? []).map((c) => ({
@@ -106,10 +117,10 @@ function Home() {
       setCreators(scored.slice(0, 12));
     })();
     return () => { alive = false; };
-  }, [session, profile]);
+  }, [userId, profile]);
 
   const loadMorePosts = useCallback(async () => {
-    if (!session || loadingPageRef.current || !hasMore) return;
+    if (!userId || loadingPageRef.current || !hasMore) return;
     loadingPageRef.current = true;
     setLoadingMore(true);
     try {
@@ -127,22 +138,22 @@ function Home() {
       setLoadingMore(false);
       loadingPageRef.current = false;
     }
-  }, [hasMore, session]);
+  }, [hasMore, userId]);
 
   useEffect(() => {
     const node = feedEndRef.current;
-    if (!node || !session || !hasMore) return;
+    if (!node || !userId || !hasMore) return;
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry?.isIntersecting) void loadMorePosts(); },
       { rootMargin: "800px 0px" }
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [hasMore, loadMorePosts, posts?.length, session]);
+  }, [hasMore, loadMorePosts, posts?.length, userId]);
 
   // Realtime: prepend new posts as they are created
   useEffect(() => {
-    if (!session) return;
+    if (!userId) return;
     const ch = supabase.channel("home-posts")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts" }, async (payload) => {
         const [post] = await attachCreators([payload.new as Omit<Post, "creator">]);
@@ -164,16 +175,16 @@ function Home() {
           return prev.filter((p) => p.id !== row.id);
         });
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "post_purchases", filter: `buyer_id=eq.${session.user.id}` }, (payload) => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "post_purchases", filter: `buyer_id=eq.${userId}` }, (payload) => {
         setPurchases((prev) => new Set([...prev, (payload.new as { post_id: string }).post_id]));
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `fan_id=eq.${session.user.id}` }, async () => {
-        const { data: s } = await supabase.from("subscriptions").select("creator_id").eq("fan_id", session.user.id).eq("active", true);
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `fan_id=eq.${userId}` }, async () => {
+        const { data: s } = await supabase.from("subscriptions").select("creator_id").eq("fan_id", userId).eq("active", true);
         setSubs(new Set((s ?? []).map((r) => r.creator_id)));
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [session]);
+  }, [userId]);
 
   if (!ready || !session) return null;
 
