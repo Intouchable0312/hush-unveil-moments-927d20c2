@@ -107,3 +107,17 @@
   0% { transform: scale(0.6); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* Auth page continuity animations */
+@keyframes hush-land {
+  0% { transform: scale(2.2) translateY(28vh); opacity: 0; filter: blur(2px); }
+  60% { opacity: 1; filter: blur(0); }
+  100% { transform: scale(1) translateY(0); opacity: 1; filter: blur(0); }
+}
+@keyframes auth-rise {
+  0% { transform: translateY(18px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.animate-hush-land { animation: hush-land 1.1s cubic-bezier(.65,.03,.34,1) both; }
+.animate-auth-rise { animation: auth-rise 0.7s cubic-bezier(.2,.7,.2,1) both; }
+
