@@ -170,7 +170,7 @@ function Account() {
               <label className="flex items-center gap-3">
                 <span className="w-24 text-xs uppercase tracking-wider text-muted-foreground">Mensuel</span>
                 <input placeholder="9.99" className="flex-1 rounded-2xl border border-border bg-background px-3 py-2 text-sm" value={plans.monthly} onChange={(e) => setPlans({ ...plans, monthly: e.target.value })} />
-                <span className="text-sm text-muted-foreground">€/mois</span>
+                <span className="text-sm text-muted-foreground">€</span>
               </label>
               <label className="flex items-center gap-3">
                 <span className="w-24 text-xs uppercase tracking-wider text-muted-foreground">Trimestriel</span>
