@@ -85,7 +85,7 @@ function Home() {
       try {
         const [firstPage, subsResult, purchasesResult] = await Promise.all([
           fetchFeedPage(0),
-          supabase.from("subscriptions").select("creator_id").eq("fan_id", userId).eq("active", true),
+          supabase.from("subscriptions").select("creator_id").eq("fan_id", userId).eq("active", true).gt("expires_at", new Date().toISOString()),
           supabase.from("post_purchases").select("post_id").eq("buyer_id", userId),
         ]);
         if (!alive || feedLoadIdRef.current !== loadId) return;
@@ -179,7 +179,7 @@ function Home() {
         setPurchases((prev) => new Set([...prev, (payload.new as { post_id: string }).post_id]));
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `fan_id=eq.${userId}` }, async () => {
-        const { data: s } = await supabase.from("subscriptions").select("creator_id").eq("fan_id", userId).eq("active", true);
+        const { data: s } = await supabase.from("subscriptions").select("creator_id").eq("fan_id", userId).eq("active", true).gt("expires_at", new Date().toISOString());
         setSubs(new Set((s ?? []).map((r) => r.creator_id)));
       })
       .subscribe();
