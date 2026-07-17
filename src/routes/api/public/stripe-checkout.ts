@@ -72,7 +72,11 @@ export const Route = createFileRoute("/api/public/stripe-checkout")({
 
           return Response.json({ error: "Kind inconnu" }, { status: 400 });
         } catch (e) {
-          return Response.json({ error: e instanceof Error ? e.message : "Erreur" }, { status: 500 });
+          const msg = e instanceof Error ? e.message : "Erreur";
+          const friendly = /cannot currently make live charges|activate|account.*restricted/i.test(msg)
+            ? "Votre compte Stripe n'est pas encore activé pour accepter les paiements en direct. Complétez l'activation dans votre tableau de bord Stripe (informations légales + KYC), ou utilisez une clé de test (sk_test_…) pour tester."
+            : msg;
+          return Response.json({ error: friendly }, { status: 500 });
         }
       },
     },
