@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Check } from "lucide-react";
+import { ChevronRight, Check } from "lucide-react";
 
 type Props = {
   label: string;
@@ -9,11 +9,12 @@ type Props = {
 };
 
 /**
- * Premium slide-to-confirm.
- * - Tall pill with animated gradient sheen inside the track
- * - Progress reveals a gradient fill under the knob
- * - Knob has a soft glow; arrows animate in a subtle chevron cue
- * - On confirm, morphs to a check with a success wash
+ * Monochrome slide-to-confirm. Black/white only, subtle motion.
+ * - Rounded rectangle (not pill) for a sharper, editorial feel
+ * - Track: transparent with hairline border, subtle inner grain
+ * - Progress: solid ink filling from the left
+ * - Knob: contrasting square with rounded corners, animated chevrons
+ * - Success: morphs to check with a soft ink wash
  */
 export function ActionSlider({ label, onConfirm, disabled, variant = "primary" }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -25,7 +26,7 @@ export function ActionSlider({ label, onConfirm, disabled, variant = "primary" }
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
-    const update = () => { if (trackRef.current) setMaxX(trackRef.current.clientWidth - 64); };
+    const update = () => { if (trackRef.current) setMaxX(trackRef.current.clientWidth - 60); };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
@@ -51,16 +52,17 @@ export function ActionSlider({ label, onConfirm, disabled, variant = "primary" }
       window.removeEventListener("touchmove", move);
       window.removeEventListener("mouseup", end);
       window.removeEventListener("touchend", end);
-      if (xRef.current >= maxX * 0.85) {
+      if (xRef.current >= maxX * 0.9) {
         setX(maxX);
         setState("confirming");
         try {
           await onConfirm();
           setState("done");
-          setTimeout(() => { setState("idle"); setX(0); }, 900);
-        } catch {
+          setTimeout(() => { setState("idle"); setX(0); }, 1100);
+        } catch (err) {
           setState("idle");
           setX(0);
+          if (err instanceof Error && err.message) alert(err.message);
         }
       } else {
         setX(0);
@@ -75,49 +77,47 @@ export function ActionSlider({ label, onConfirm, disabled, variant = "primary" }
   const progress = maxX ? x / maxX : 0;
   const destructive = variant === "destructive";
 
-  const trackGradient = destructive
-    ? "from-destructive/15 via-destructive/5 to-destructive/15"
-    : "from-primary/10 via-transparent to-primary/10";
-  const fillGradient = destructive
-    ? "from-destructive via-destructive to-rose-500"
-    : "from-primary via-primary to-fuchsia-500";
-  const knobBg = destructive
-    ? "bg-gradient-to-br from-rose-500 to-destructive text-destructive-foreground"
-    : "bg-gradient-to-br from-primary to-fuchsia-500 text-primary-foreground";
-  const glow = destructive ? "shadow-[0_0_24px_-4px_hsl(var(--destructive)/0.7)]" : "shadow-[0_0_28px_-4px_hsl(var(--primary)/0.55)]";
+  // Monochrome palette — inverts on destructive to keep it strictly B/W.
+  const inkBg = destructive ? "bg-foreground" : "bg-foreground";
+  const inkFg = "text-background";
 
   return (
     <div
       ref={trackRef}
-      className={`group relative h-16 w-full select-none overflow-hidden rounded-full border border-border/60 bg-secondary/60 backdrop-blur ${disabled ? "opacity-50" : ""}`}
+      className={`group relative h-14 w-full select-none overflow-hidden rounded-2xl border border-foreground/20 bg-transparent ${disabled ? "opacity-40" : ""}`}
     >
-      {/* Ambient sheen */}
-      <div className={`pointer-events-none absolute inset-0 rounded-full bg-gradient-to-r ${trackGradient}`} />
-      {!dragging && state === "idle" && (
-        <div className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 animate-[shimmer_2.8s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-      )}
+      {/* subtle grain / gradient hint */}
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(127,127,127,0.06),transparent)]" />
 
-      {/* Progress fill */}
+      {/* Progress fill (solid ink) */}
       <div
-        className={`absolute inset-y-1 left-1 rounded-full bg-gradient-to-r ${fillGradient} transition-opacity`}
+        className={`absolute inset-y-0 left-0 ${inkBg}`}
         style={{
-          width: `${Math.max(56, x + 56)}px`,
-          opacity: state === "done" ? 1 : 0.85,
-          transition: dragging ? "none" : "width 0.35s cubic-bezier(.34,1.56,.64,1)",
+          width: `${x + 56}px`,
+          transition: dragging ? "none" : "width 0.4s cubic-bezier(.22,1,.36,1)",
         }}
       />
 
       {/* Label */}
       <div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center pl-14 text-[13px] font-bold uppercase tracking-[0.2em]"
+        className="pointer-events-none absolute inset-0 flex items-center justify-center pl-14 text-[11px] font-semibold uppercase tracking-[0.28em]"
         style={{
-          color: state === "done" ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-          opacity: state === "done" ? 1 : Math.max(0.35, 1 - progress * 1.2),
-          transition: "opacity 0.2s ease",
+          color: state === "done" ? "hsl(var(--background))" : "hsl(var(--foreground))",
+          opacity: state === "done" ? 1 : Math.max(0.4, 1 - progress * 1.3),
+          transition: "opacity 0.2s ease, color 0.2s ease",
         }}
       >
         {state === "done" ? "Confirmé" : state === "confirming" ? "…" : label}
       </div>
+
+      {/* Slide hint arrows — only when idle */}
+      {state === "idle" && !dragging && (
+        <div className="pointer-events-none absolute right-5 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-40">
+          <span className="animate-[slidehint_1.6s_ease-in-out_infinite] text-foreground">›</span>
+          <span className="animate-[slidehint_1.6s_ease-in-out_0.15s_infinite] text-foreground">›</span>
+          <span className="animate-[slidehint_1.6s_ease-in-out_0.3s_infinite] text-foreground">›</span>
+        </div>
+      )}
 
       {/* Knob */}
       <div
@@ -128,18 +128,15 @@ export function ActionSlider({ label, onConfirm, disabled, variant = "primary" }
         onMouseDown={(e) => start(e.clientX)}
         onTouchStart={(e) => start(e.touches[0].clientX)}
         style={{
-          transform: `translateX(${x}px) scale(${dragging ? 1.05 : 1})`,
-          transition: dragging ? "transform 0s" : "transform 0.35s cubic-bezier(.34,1.56,.64,1)",
+          transform: `translateX(${x}px)`,
+          transition: dragging ? "transform 0s" : "transform 0.4s cubic-bezier(.22,1,.36,1)",
         }}
-        className={`absolute left-1 top-1 flex h-14 w-14 cursor-grab items-center justify-center rounded-full ${knobBg} ${glow} ring-1 ring-white/20 active:cursor-grabbing`}
+        className={`absolute left-1 top-1 flex h-12 w-12 cursor-grab items-center justify-center rounded-xl ${inkBg} ${inkFg} active:cursor-grabbing`}
       >
         {state === "done" ? (
-          <Check className="h-6 w-6" strokeWidth={3} />
+          <Check className="h-5 w-5 animate-[scale-in_0.25s_ease-out]" strokeWidth={3} />
         ) : (
-          <>
-            <ArrowRight className="h-5 w-5 -translate-x-0.5" strokeWidth={2.5} />
-            <ArrowRight className="absolute h-5 w-5 translate-x-1.5 opacity-40" strokeWidth={2.5} />
-          </>
+          <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
         )}
       </div>
     </div>
