@@ -97,7 +97,7 @@ export function PhoneInput({ value, onChange, className }: Props) {
         onChange={(e) => handleType(e.target.value)}
       />
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-border bg-popover shadow-xl">
+        <div className="absolute left-0 top-full z-[200] mt-2 w-72 overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl">
           <div className="flex items-center gap-2 border-b border-border px-3 py-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input autoFocus placeholder="Rechercher un pays" value={q} onChange={(e) => setQ(e.target.value)} className="flex-1 bg-transparent text-sm outline-none" />
