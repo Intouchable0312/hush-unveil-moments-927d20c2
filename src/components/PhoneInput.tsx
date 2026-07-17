@@ -78,11 +78,11 @@ export function PhoneInput({ value, onChange, className }: Props) {
   };
 
   return (
-    <div ref={rootRef} className={`relative flex items-stretch overflow-hidden rounded-2xl border border-border bg-card ${className ?? ""}`}>
+    <div ref={rootRef} className={`relative flex items-stretch rounded-2xl border border-border bg-card ${className ?? ""}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 border-r border-border px-3 py-3 text-sm hover:bg-secondary"
+        className="flex items-center gap-1 rounded-l-2xl border-r border-border px-3 py-3 text-sm hover:bg-secondary"
       >
         <span className="text-lg leading-none">{info.flag}</span>
         <span className="tabular-nums text-muted-foreground">+{getCountryCallingCode(country)}</span>
@@ -92,12 +92,12 @@ export function PhoneInput({ value, onChange, className }: Props) {
         type="tel"
         inputMode="tel"
         placeholder="Téléphone"
-        className="min-w-0 flex-1 bg-transparent px-4 py-3 tabular-nums outline-none"
+        className="min-w-0 flex-1 rounded-r-2xl bg-transparent px-4 py-3 tabular-nums outline-none"
         value={display}
         onChange={(e) => handleType(e.target.value)}
       />
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-border bg-popover shadow-xl">
+        <div className="absolute left-0 top-full z-[200] mt-2 w-72 overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl">
           <div className="flex items-center gap-2 border-b border-border px-3 py-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input autoFocus placeholder="Rechercher un pays" value={q} onChange={(e) => setQ(e.target.value)} className="flex-1 bg-transparent text-sm outline-none" />

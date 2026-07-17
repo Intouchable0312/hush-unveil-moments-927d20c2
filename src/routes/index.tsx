@@ -52,6 +52,30 @@ function Home() {
     })();
   }, [session, profile]);
 
+  // Realtime: prepend new posts as they are created
+  useEffect(() => {
+    if (!session) return;
+    const ch = supabase.channel("home-posts")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts" }, async (payload) => {
+        const row = payload.new as Post;
+        const { data: creator } = await supabase.from("profiles").select("username,avatar_url").eq("id", row.creator_id).maybeSingle();
+        setPosts((prev) => prev ? [{ ...row, creator: creator as Post["creator"] }, ...prev.filter((p) => p.id !== row.id)] : prev);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "posts" }, (payload) => {
+        const row = payload.old as { id: string };
+        setPosts((prev) => prev ? prev.filter((p) => p.id !== row.id) : prev);
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "post_purchases", filter: `buyer_id=eq.${session.user.id}` }, (payload) => {
+        setPurchases((prev) => new Set([...prev, (payload.new as { post_id: string }).post_id]));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `fan_id=eq.${session.user.id}` }, async () => {
+        const { data: s } = await supabase.from("subscriptions").select("creator_id").eq("fan_id", session.user.id).eq("active", true);
+        setSubs(new Set((s ?? []).map((r) => r.creator_id)));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [session]);
+
   if (!ready || !session) return null;
 
   return (
