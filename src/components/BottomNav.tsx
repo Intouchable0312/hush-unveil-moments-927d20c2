@@ -23,25 +23,25 @@ export function BottomNav() {
             const active = pathname === t.to || (t.to !== "/" && pathname.startsWith(t.to));
             if (t.center) {
               return (
-                <Link
+                <L
                   key={t.to}
                   to={t.to}
                   className="-my-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:scale-105 active:scale-95"
                   aria-label={t.label}
                 >
                   <Icon className="h-6 w-6" />
-                </Link>
+                </L>
               );
             }
             return (
-              <Link
+              <L
                 key={t.to}
                 to={t.to}
                 className={`flex h-11 w-11 items-center justify-center rounded-full ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                 aria-label={t.label}
               >
                 <Icon className="h-5 w-5" />
-              </Link>
+              </L>
             );
           })}
         </div>
