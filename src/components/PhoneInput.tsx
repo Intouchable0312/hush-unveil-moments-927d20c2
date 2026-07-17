@@ -92,7 +92,7 @@ export function PhoneInput({ value, onChange, className }: Props) {
         type="tel"
         inputMode="tel"
         placeholder="Téléphone"
-        className="min-w-0 flex-1 bg-transparent px-4 py-3 tabular-nums outline-none"
+        className="min-w-0 flex-1 rounded-r-2xl bg-transparent px-4 py-3 tabular-nums outline-none"
         value={display}
         onChange={(e) => handleType(e.target.value)}
       />
