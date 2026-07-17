@@ -58,6 +58,15 @@ function Chat() {
     })();
   }, [session, otherId]);
 
+  // Mark as read whenever a message arrives while chat is open, or on mount
+  useEffect(() => {
+    if (!convId || !session) return;
+    supabase.from("conversation_settings").upsert(
+      { conversation_id: convId, user_id: session.user.id, last_read_at: new Date().toISOString() },
+      { onConflict: "conversation_id,user_id" }
+    ).then(() => {});
+  }, [convId, session, messages.length]);
+
   useEffect(() => {
     if (!convId || !session) return;
     const ch = supabase.channel(`conv-${convId}`)
