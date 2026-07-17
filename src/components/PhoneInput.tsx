@@ -78,7 +78,7 @@ export function PhoneInput({ value, onChange, className }: Props) {
   };
 
   return (
-    <div ref={rootRef} className={`relative flex items-stretch overflow-hidden rounded-2xl border border-border bg-card ${className ?? ""}`}>
+    <div ref={rootRef} className={`relative flex items-stretch rounded-2xl border border-border bg-card ${className ?? ""}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
