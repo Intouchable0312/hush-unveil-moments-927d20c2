@@ -38,6 +38,41 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_settings: {
+        Row: {
+          allow_photos_from_other: boolean
+          conversation_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allow_photos_from_other?: boolean
+          conversation_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allow_photos_from_other?: boolean
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_settings_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           creator_id: string
