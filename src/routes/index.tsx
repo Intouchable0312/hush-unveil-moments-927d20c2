@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { authFetch } from "@/lib/authFetch";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,7 +96,7 @@ export function PostCard({ post, locked, ppvLocked, onUnlock }: { post: Post; lo
   };
 
   const buy = async () => {
-    const res = await fetch("/api/public/stripe-checkout", {
+    const res = await authFetch("/api/public/stripe-checkout", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ kind: "post", post_id: post.id }),
     });
