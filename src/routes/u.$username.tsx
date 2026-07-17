@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
+import { authFetch } from "@/lib/authFetch";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,7 +44,7 @@ function CreatorProfile() {
 
   const subscribe = async () => {
     if (!creator) return;
-    const res = await fetch("/api/public/stripe-checkout", {
+    const res = await authFetch("/api/public/stripe-checkout", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ kind: "subscription", creator_id: creator.id, period }),
     });

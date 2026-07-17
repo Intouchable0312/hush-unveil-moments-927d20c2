@@ -1,4 +1,5 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
+import { authFetch } from "@/lib/authFetch";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,7 +75,7 @@ function Chat() {
   };
 
   const buyMedia = async (mid: string) => {
-    const res = await fetch("/api/public/stripe-checkout", {
+    const res = await authFetch("/api/public/stripe-checkout", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ kind: "message_media", message_id: mid }),
     });
