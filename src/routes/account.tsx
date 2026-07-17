@@ -183,7 +183,7 @@ function Account() {
                 <span className="text-sm text-muted-foreground">€</span>
               </label>
             </div>
-            <button onClick={savePlans} className="mt-4 w-full rounded-full bg-primary py-3 font-semibold text-primary-foreground">Enregistrer mes tarifs</button>
+            <button onClick={savePlans} disabled={saving} className="mt-4 w-full rounded-full bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-50">{saving ? "…" : "Enregistrer mes tarifs"}</button>
           </div>
           <p className="text-xs text-muted-foreground">💡 Le contrôle des photos que vos abonnés vous envoient se fait maintenant conversation par conversation, directement dans la discussion.</p>
         </div>
