@@ -29,6 +29,8 @@ function Home() {
   const [purchases, setPurchases] = useState<Set<string>>(new Set());
   const [creators, setCreators] = useState<Creator[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [q, setQ] = useState("");
+  const [searchResults, setSearchResults] = useState<Creator[] | null>(null);
 
   useEffect(() => { if (ready && !session) nav({ to: "/auth" as string as any }); }, [ready, session, nav]);
 
