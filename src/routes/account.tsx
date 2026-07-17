@@ -96,8 +96,9 @@ function Account() {
     const path = `${session.user.id}/${cropKind}-${crypto.randomUUID()}.jpg`;
     const { error } = await supabase.storage.from("media").upload(path, file, { upsert: false });
     if (error) { alert(error.message); return; }
-    const field = cropKind === "avatar" ? "avatar_url" : "cover_url";
-    await supabase.from("profiles").update({ [field]: path }).eq("id", session.user.id);
+    const patch = cropKind === "avatar" ? { avatar_url: path } : { cover_url: path };
+    await supabase.from("profiles").update(patch).eq("id", session.user.id);
+
     await refresh();
   };
 
