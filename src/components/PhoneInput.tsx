@@ -82,7 +82,7 @@ export function PhoneInput({ value, onChange, className }: Props) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 border-r border-border px-3 py-3 text-sm hover:bg-secondary"
+        className="flex items-center gap-1 rounded-l-2xl border-r border-border px-3 py-3 text-sm hover:bg-secondary"
       >
         <span className="text-lg leading-none">{info.flag}</span>
         <span className="tabular-nums text-muted-foreground">+{getCountryCallingCode(country)}</span>
