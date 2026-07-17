@@ -53,6 +53,28 @@ function Account() {
     return () => { supabase.removeChannel(ch); };
   }, [session, refresh]);
 
+  // Load my posts + live updates
+  const loadMyPosts = async () => {
+    if (!session) return;
+    const { data } = await supabase.from("posts").select("id,media_url,visibility,ppv_price_cents,created_at,description").eq("creator_id", session.user.id).order("created_at", { ascending: false });
+    setMyPosts(data ?? []);
+  };
+  useEffect(() => {
+    if (!session) return;
+    loadMyPosts();
+    const ch = supabase.channel(`myposts-${session.user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts", filter: `creator_id=eq.${session.user.id}` }, loadMyPosts)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  const deletePost = async (id: string) => {
+    if (!confirm("Supprimer cette publication ?")) return;
+    await supabase.from("posts").delete().eq("id", id);
+  };
+
+
   const saveProfile = async () => {
     if (!session) return;
     setSaving(true);
