@@ -26,6 +26,7 @@ function CreatorProfile() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [plan, setPlan] = useState<any>(null);
   const [subbed, setSubbed] = useState(false);
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
   const [period, setPeriod] = useState<"monthly" | "quarterly" | "yearly">("monthly");
   const [openPost, setOpenPost] = useState<Post | null>(null);
   const [subOpen, setSubOpen] = useState(false);
@@ -40,10 +41,22 @@ function CreatorProfile() {
       const { data: pl } = await supabase.from("subscription_plans").select("*").eq("creator_id", c.id).maybeSingle();
       setPlan(pl);
       if (session) {
-        const { data: s } = await supabase.from("subscriptions").select("*").eq("fan_id", session.user.id).eq("creator_id", c.id).eq("active", true).maybeSingle();
+        setCheckingSubscription(true);
+        const { data: s } = await supabase
+          .from("subscriptions")
+          .select("id")
+          .eq("fan_id", session.user.id)
+          .eq("creator_id", c.id)
+          .eq("active", true)
+          .gt("expires_at", new Date().toISOString())
+          .maybeSingle();
         setSubbed(!!s);
         const { data: pu } = await supabase.from("post_purchases").select("post_id").eq("buyer_id", session.user.id);
         setPurchases(new Set((pu ?? []).map((r) => r.post_id)));
+        setCheckingSubscription(false);
+      } else {
+        setSubbed(false);
+        setCheckingSubscription(false);
       }
     })();
   }, [username, session]);
@@ -67,7 +80,14 @@ function CreatorProfile() {
     if (!session || !creator?.id) return;
     const ch = supabase.channel(`sub-${session.user.id}-${creator.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `fan_id=eq.${session.user.id}` }, async () => {
-        const { data: s } = await supabase.from("subscriptions").select("*").eq("fan_id", session.user.id).eq("creator_id", creator.id).eq("active", true).maybeSingle();
+        const { data: s } = await supabase
+          .from("subscriptions")
+          .select("id")
+          .eq("fan_id", session.user.id)
+          .eq("creator_id", creator.id)
+          .eq("active", true)
+          .gt("expires_at", new Date().toISOString())
+          .maybeSingle();
         setSubbed(!!s);
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "post_purchases", filter: `buyer_id=eq.${session.user.id}` }, (payload) => {
@@ -136,6 +156,12 @@ function CreatorProfile() {
         <L to={`/messages/${creator.id}`} className="mt-4 flex items-center justify-center gap-2 rounded-full bg-primary py-3 font-semibold text-primary-foreground">
           <MessageCircle className="h-5 w-5" /> Envoyer un message
         </L>
+      )}
+
+      {!isMe && checkingSubscription && (
+        <div className="mt-4 rounded-2xl border border-border bg-card py-3 text-center text-sm font-medium text-muted-foreground">
+          Vérification de votre accès message…
+        </div>
       )}
 
       <h2 className="mt-8 mb-3 text-lg font-bold">Publications</h2>
