@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { authFetch } from "@/lib/authFetch";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { HushLogo } from "@/components/HushLogo";
@@ -21,6 +21,39 @@ type Post = {
 
 type Creator = { id: string; username: string | null; avatar_url: string | null; hashtags: string[]; score: number };
 
+const FEED_PAGE_SIZE = 12;
+
+async function attachCreators(rows: Omit<Post, "creator">[]): Promise<Post[]> {
+  const creatorIds = [...new Set(rows.map((row) => row.creator_id).filter(Boolean))];
+  if (creatorIds.length === 0) return rows.map((row) => ({ ...row, creator: null }));
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id,username,avatar_url")
+    .in("id", creatorIds);
+
+  const profilesById = new Map((profiles ?? []).map((creator) => [creator.id, creator]));
+  return rows.map((row) => {
+    const creator = profilesById.get(row.creator_id);
+    return {
+      ...row,
+      creator: creator ? { username: creator.username, avatar_url: creator.avatar_url } : null,
+    };
+  });
+}
+
+async function fetchFeedPage(from: number) {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .range(from, from + FEED_PAGE_SIZE - 1);
+
+  if (error) throw error;
+  const rows = (data ?? []) as Omit<Post, "creator">[];
+  return { posts: await attachCreators(rows), hasMore: rows.length === FEED_PAGE_SIZE };
+}
+
 function Home() {
   const { session, profile, ready } = useAuth();
   const nav = useNavigate();
@@ -31,19 +64,50 @@ function Home() {
   const [showSuggest, setShowSuggest] = useState(false);
   const [q, setQ] = useState("");
   const [searchResults, setSearchResults] = useState<Creator[] | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const cursorRef = useRef(0);
+  const loadingPageRef = useRef(false);
+  const feedEndRef = useRef<HTMLDivElement>(null);
+  const feedLoadIdRef = useRef(0);
+  const userId = session?.user.id;
 
   useEffect(() => { if (ready && !session) nav({ to: "/auth" as string as any }); }, [ready, session, nav]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!userId) return;
+    let alive = true;
+    const loadId = ++feedLoadIdRef.current;
     (async () => {
-      const { data } = await supabase.from("posts").select("*, creator:profiles!posts_creator_id_fkey(username,avatar_url)").order("created_at", { ascending: false }).limit(50);
-      setPosts((data as unknown as Post[]) ?? []);
-      const { data: s } = await supabase.from("subscriptions").select("creator_id").eq("fan_id", session.user.id).eq("active", true);
-      setSubs(new Set((s ?? []).map((r) => r.creator_id)));
-      const { data: p } = await supabase.from("post_purchases").select("post_id").eq("buyer_id", session.user.id);
-      setPurchases(new Set((p ?? []).map((r) => r.post_id)));
-      const { data: cs } = await supabase.from("profiles").select("id,username,avatar_url,hashtags").eq("is_creator", true).neq("id", session.user.id).limit(30);
+      setPosts(null);
+      setHasMore(true);
+      cursorRef.current = 0;
+      try {
+        const [firstPage, subsResult, purchasesResult] = await Promise.all([
+          fetchFeedPage(0),
+          supabase.from("subscriptions").select("creator_id").eq("fan_id", userId).eq("active", true).gt("expires_at", new Date().toISOString()),
+          supabase.from("post_purchases").select("post_id").eq("buyer_id", userId),
+        ]);
+        if (!alive || feedLoadIdRef.current !== loadId) return;
+        setPosts(firstPage.posts);
+        setHasMore(firstPage.hasMore);
+        cursorRef.current = firstPage.posts.length;
+        setSubs(new Set((subsResult.data ?? []).map((r) => r.creator_id)));
+        setPurchases(new Set((purchasesResult.data ?? []).map((r) => r.post_id)));
+      } catch (error) {
+        console.error("Impossible de charger le feed", error);
+        if (alive && feedLoadIdRef.current === loadId) setPosts([]);
+      }
+    })();
+    return () => { alive = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    (async () => {
+      const { data: cs } = await supabase.from("profiles").select("id,username,avatar_url,hashtags").eq("is_creator", true).neq("id", userId).limit(30);
+      if (!alive) return;
       const mine = new Set((profile?.hashtags ?? []).map((h) => h.toLowerCase()));
       const scored: Creator[] = (cs ?? []).map((c) => ({
         ...c as Creator,
@@ -52,31 +116,75 @@ function Home() {
       scored.sort((a, b) => b.score - a.score);
       setCreators(scored.slice(0, 12));
     })();
-  }, [session, profile]);
+    return () => { alive = false; };
+  }, [userId, profile]);
+
+  const loadMorePosts = useCallback(async () => {
+    if (!userId || loadingPageRef.current || !hasMore) return;
+    loadingPageRef.current = true;
+    setLoadingMore(true);
+    try {
+      const from = cursorRef.current;
+      const page = await fetchFeedPage(from);
+      setPosts((prev) => {
+        const existing = new Set((prev ?? []).map((post) => post.id));
+        return [...(prev ?? []), ...page.posts.filter((post) => !existing.has(post.id))];
+      });
+      cursorRef.current = from + page.posts.length;
+      setHasMore(page.hasMore);
+    } catch (error) {
+      console.error("Impossible de charger les anciennes publications", error);
+    } finally {
+      setLoadingMore(false);
+      loadingPageRef.current = false;
+    }
+  }, [hasMore, userId]);
+
+  useEffect(() => {
+    const node = feedEndRef.current;
+    if (!node || !userId || !hasMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry?.isIntersecting) void loadMorePosts(); },
+      { rootMargin: "800px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadMorePosts, posts?.length, userId]);
 
   // Realtime: prepend new posts as they are created
   useEffect(() => {
-    if (!session) return;
+    if (!userId) return;
     const ch = supabase.channel("home-posts")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts" }, async (payload) => {
-        const row = payload.new as Post;
-        const { data: creator } = await supabase.from("profiles").select("username,avatar_url").eq("id", row.creator_id).maybeSingle();
-        setPosts((prev) => prev ? [{ ...row, creator: creator as Post["creator"] }, ...prev.filter((p) => p.id !== row.id)] : prev);
+        const [post] = await attachCreators([payload.new as Omit<Post, "creator">]);
+        setPosts((prev) => {
+          if (!prev || prev.some((p) => p.id === post.id)) return prev;
+          cursorRef.current += 1;
+          return [post, ...prev];
+        });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "posts" }, async (payload) => {
+        const [post] = await attachCreators([payload.new as Omit<Post, "creator">]);
+        setPosts((prev) => prev ? prev.map((p) => (p.id === post.id ? post : p)) : prev);
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "posts" }, (payload) => {
         const row = payload.old as { id: string };
-        setPosts((prev) => prev ? prev.filter((p) => p.id !== row.id) : prev);
+        setPosts((prev) => {
+          if (!prev?.some((p) => p.id === row.id)) return prev;
+          cursorRef.current = Math.max(0, cursorRef.current - 1);
+          return prev.filter((p) => p.id !== row.id);
+        });
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "post_purchases", filter: `buyer_id=eq.${session.user.id}` }, (payload) => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "post_purchases", filter: `buyer_id=eq.${userId}` }, (payload) => {
         setPurchases((prev) => new Set([...prev, (payload.new as { post_id: string }).post_id]));
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `fan_id=eq.${session.user.id}` }, async () => {
-        const { data: s } = await supabase.from("subscriptions").select("creator_id").eq("fan_id", session.user.id).eq("active", true);
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `fan_id=eq.${userId}` }, async () => {
+        const { data: s } = await supabase.from("subscriptions").select("creator_id").eq("fan_id", userId).eq("active", true).gt("expires_at", new Date().toISOString());
         setSubs(new Set((s ?? []).map((r) => r.creator_id)));
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [session]);
+  }, [userId]);
 
   if (!ready || !session) return null;
 
@@ -170,13 +278,17 @@ function Home() {
         {posts?.map((p) => {
           const subscribed = subs.has(p.creator_id) || p.creator_id === session.user.id;
           const purchased = purchases.has(p.id);
-          const isPublic = p.visibility === "public";
           const isPPV = p.visibility === "ppv";
-          const locked = !isPublic && !subscribed;
+          const locked = p.visibility === "subscribers" && !subscribed;
           const ppvLocked = isPPV && !purchased && p.creator_id !== session.user.id;
           return <PostCard key={p.id} post={p} locked={locked} ppvLocked={ppvLocked} onUnlock={() => setPurchases(new Set([...purchases, p.id]))} />;
         })}
       </div>
+      {posts && posts.length > 0 && (
+        <div ref={feedEndRef} className="py-8 text-center text-xs font-medium text-muted-foreground">
+          {loadingMore ? "Chargement des anciennes publications…" : hasMore ? "" : "Vous avez vu toutes les publications."}
+        </div>
+      )}
     </div>
   );
 }
