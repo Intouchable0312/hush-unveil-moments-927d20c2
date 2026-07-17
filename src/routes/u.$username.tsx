@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { authFetch } from "@/lib/authFetch";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SignedImage } from "@/components/SignedImage";
 import { PaymentSlider } from "@/components/PaymentSlider";
 import { Modal } from "@/components/Modal";
-import { MessageCircle, Lock, Sparkles } from "lucide-react";
+import { MessageCircle, Lock, Sparkles, Check, Image as ImageIcon, Heart, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/u/$username")({ component: CreatorProfile });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -18,18 +18,21 @@ type Post = any;
 function CreatorProfile() {
   const { username } = useParams({ from: "/u/$username" });
   const { session, isAdmin } = useAuth();
-  const nav = useNavigate();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [creator, setCreator] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [purchases, setPurchases] = useState<Set<string>>(new Set());
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [plan, setPlan] = useState<any>(null);
-  const [subbed, setSubbed] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [subRow, setSubRow] = useState<any>(null);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
   const [period, setPeriod] = useState<"monthly" | "quarterly" | "yearly">("monthly");
   const [openPost, setOpenPost] = useState<Post | null>(null);
   const [subOpen, setSubOpen] = useState(false);
+  const [unsubOpen, setUnsubOpen] = useState(false);
+
+  const subbed = !!subRow;
 
   useEffect(() => {
     (async () => {
@@ -44,24 +47,23 @@ function CreatorProfile() {
         setCheckingSubscription(true);
         const { data: s } = await supabase
           .from("subscriptions")
-          .select("id")
+          .select("*")
           .eq("fan_id", session.user.id)
           .eq("creator_id", c.id)
           .eq("active", true)
           .gt("expires_at", new Date().toISOString())
           .maybeSingle();
-        setSubbed(!!s);
+        setSubRow(s);
         const { data: pu } = await supabase.from("post_purchases").select("post_id").eq("buyer_id", session.user.id);
         setPurchases(new Set((pu ?? []).map((r) => r.post_id)));
         setCheckingSubscription(false);
       } else {
-        setSubbed(false);
+        setSubRow(null);
         setCheckingSubscription(false);
       }
     })();
   }, [username, session]);
 
-  // Realtime: new posts from this creator appear instantly
   useEffect(() => {
     if (!creator?.id) return;
     const ch = supabase.channel(`creator-posts-${creator.id}`)
@@ -75,20 +77,15 @@ function CreatorProfile() {
     return () => { supabase.removeChannel(ch); };
   }, [creator?.id]);
 
-  // Realtime: my subscription status
   useEffect(() => {
     if (!session || !creator?.id) return;
     const ch = supabase.channel(`sub-${session.user.id}-${creator.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `fan_id=eq.${session.user.id}` }, async () => {
         const { data: s } = await supabase
-          .from("subscriptions")
-          .select("id")
-          .eq("fan_id", session.user.id)
-          .eq("creator_id", creator.id)
-          .eq("active", true)
-          .gt("expires_at", new Date().toISOString())
-          .maybeSingle();
-        setSubbed(!!s);
+          .from("subscriptions").select("*")
+          .eq("fan_id", session.user.id).eq("creator_id", creator.id).eq("active", true)
+          .gt("expires_at", new Date().toISOString()).maybeSingle();
+        setSubRow(s);
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "post_purchases", filter: `buyer_id=eq.${session.user.id}` }, (payload) => {
         setPurchases((prev) => new Set([...prev, (payload.new as { post_id: string }).post_id]));
@@ -110,6 +107,15 @@ function CreatorProfile() {
     else alert(j.error ?? "Erreur");
   };
 
+  const unsubscribe = async () => {
+    if (!subRow) return;
+    await supabase.from("subscriptions")
+      .update({ active: false, expires_at: new Date().toISOString() })
+      .eq("id", subRow.id);
+    setSubRow(null);
+    setUnsubOpen(false);
+  };
+
   const buyPost = async (postId: string) => {
     const res = await authFetch("/api/public/stripe-checkout", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -124,68 +130,121 @@ function CreatorProfile() {
     if (!creator || !session) return;
     const now = new Date(); const exp = new Date(now); exp.setFullYear(exp.getFullYear() + 100);
     await supabase.from("subscriptions").upsert({ fan_id: session.user.id, creator_id: creator.id, period: "gift", price_paid_cents: 0, expires_at: exp.toISOString(), active: true });
-    setSubbed(true);
     setSubOpen(false);
   };
 
   if (!creator) return <div className="p-10 text-center text-sm text-muted-foreground">Créateur introuvable.</div>;
 
   const isMe = session?.user.id === creator.id;
+  const publicCount = posts.filter((p) => p.visibility === "public").length;
+  const premiumCount = posts.length - publicCount;
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-6 pb-24">
-      <div className="flex items-center gap-4">
-        <div className="h-24 w-24 overflow-hidden rounded-full bg-muted ring-2 ring-border">
-          {creator.avatar_url && <SignedImage path={creator.avatar_url} className="h-full w-full object-cover" />}
-        </div>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">@{creator.username}</h1>
-          <p className="text-sm text-muted-foreground">{creator.first_name} {creator.last_name}</p>
-        </div>
+    <div className="pb-28">
+      {/* Cover / banner */}
+      <div className="relative h-56 w-full overflow-hidden bg-gradient-to-br from-muted via-secondary to-muted sm:h-72">
+        {creator.cover_url ? (
+          <SignedImage path={creator.cover_url} className="h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,var(--color-accent),transparent_60%),radial-gradient(circle_at_70%_80%,var(--color-secondary),transparent_60%)]" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
       </div>
-      {creator.bio && <p className="mt-4 text-sm">{creator.bio}</p>}
-      {creator.hashtags?.length > 0 && <p className="mt-1 text-xs text-muted-foreground">{creator.hashtags.map((h: string) => `#${h}`).join(" ")}</p>}
 
-      {!isMe && !subbed && plan && price > 0 && (
-        <button onClick={() => setSubOpen(true)} className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 font-semibold text-primary-foreground">
-          <Sparkles className="h-4 w-4" /> S'abonner à partir de {(plan.price_monthly_cents / 100).toFixed(2)}€
-        </button>
-      )}
+      <div className="mx-auto -mt-16 max-w-lg px-5">
+        {/* Avatar + identity card */}
+        <div className="rounded-3xl border border-border bg-card/90 p-5 shadow-xl backdrop-blur">
+          <div className="flex items-end gap-4">
+            <div className="-mt-14 h-24 w-24 shrink-0 overflow-hidden rounded-full bg-muted ring-4 ring-card shadow-lg">
+              {creator.avatar_url && <SignedImage path={creator.avatar_url} className="h-full w-full object-cover" />}
+            </div>
+            <div className="flex-1 pb-1">
+              <h1 className="flex items-center gap-1.5 text-xl font-bold leading-tight">
+                @{creator.username}
+                {subbed && <span title="Abonné" className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"><Check className="h-3 w-3" /></span>}
+              </h1>
+              <p className="text-xs text-muted-foreground">{creator.first_name} {creator.last_name}</p>
+            </div>
+          </div>
 
-      {subbed && !isMe && (
-        <L to={`/messages/${creator.id}`} className="mt-4 flex items-center justify-center gap-2 rounded-full bg-primary py-3 font-semibold text-primary-foreground">
-          <MessageCircle className="h-5 w-5" /> Envoyer un message
-        </L>
-      )}
+          {creator.bio && <p className="mt-4 text-sm leading-relaxed">{creator.bio}</p>}
+          {creator.hashtags?.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {creator.hashtags.map((h: string) => (
+                <span key={h} className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">#{h}</span>
+              ))}
+            </div>
+          )}
 
-      {!isMe && checkingSubscription && (
-        <div className="mt-4 rounded-2xl border border-border bg-card py-3 text-center text-sm font-medium text-muted-foreground">
-          Vérification de votre accès message…
-        </div>
-      )}
+          {/* Stats row */}
+          <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl bg-secondary/50 p-3 text-center">
+            <div><p className="text-lg font-bold leading-none">{posts.length}</p><p className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">Posts</p></div>
+            <div className="border-x border-border"><p className="text-lg font-bold leading-none">{publicCount}</p><p className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">Publics</p></div>
+            <div><p className="text-lg font-bold leading-none">{premiumCount}</p><p className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">Premium</p></div>
+          </div>
 
-      <h2 className="mt-8 mb-3 text-lg font-bold">Publications</h2>
-      {posts.length === 0 && <p className="text-sm text-muted-foreground">Aucune publication.</p>}
-      <div className="grid grid-cols-3 gap-1">
-        {posts.map((p) => {
-          const locked = !isMe && p.visibility === "subscribers" && !subbed;
-          const ppvLocked = p.visibility === "ppv" && !purchases.has(p.id) && !isMe;
-          return (
-            <button
-              key={p.id}
-              onClick={() => setOpenPost(p)}
-              className="relative aspect-square overflow-hidden rounded-2xl bg-muted"
-            >
-              <SignedImage path={p.media_url} className="h-full w-full object-cover" blurred={locked || ppvLocked} />
-              {(locked || ppvLocked) && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-background/40 text-xs font-bold">
-                  <Lock className="h-4 w-4" />
-                  {ppvLocked && <span>{(p.ppv_price_cents / 100).toFixed(2)}€</span>}
+          {/* Action bar */}
+          {!isMe && (
+            <div className="mt-5 space-y-2">
+              {!subbed && plan && price > 0 && (
+                <button onClick={() => setSubOpen(true)} className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-primary py-3.5 font-semibold text-primary-foreground shadow-lg transition hover:scale-[1.01] active:scale-[0.99]">
+                  <span className="absolute inset-y-0 -left-1/2 w-1/2 skew-x-12 bg-white/15 transition-transform duration-700 group-hover:translate-x-[300%]" />
+                  <Sparkles className="h-4 w-4" /> S'abonner — {(plan.price_monthly_cents / 100).toFixed(2)}€ / mois
+                </button>
+              )}
+              {subbed && (
+                <div className="flex gap-2">
+                  <L to={`/messages/${creator.id}`} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary py-3 font-semibold text-primary-foreground shadow">
+                    <MessageCircle className="h-5 w-5" /> Message
+                  </L>
+                  <button onClick={() => setUnsubOpen(true)} className="flex items-center justify-center gap-1 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium text-muted-foreground hover:text-destructive hover:border-destructive/40" title="Se désabonner">
+                    <XCircle className="h-4 w-4" />
+                  </button>
                 </div>
               )}
-            </button>
-          );
-        })}
+              {checkingSubscription && (
+                <div className="rounded-2xl border border-border bg-card py-2.5 text-center text-xs font-medium text-muted-foreground">Vérification…</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Posts */}
+        <div className="mt-6 mb-3 flex items-center justify-between px-1">
+          <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-muted-foreground">
+            <ImageIcon className="h-3.5 w-3.5" /> Publications
+          </h2>
+          <span className="text-xs text-muted-foreground">{posts.length}</span>
+        </div>
+        {posts.length === 0 && (
+          <div className="rounded-3xl border border-dashed border-border py-12 text-center text-sm text-muted-foreground">Aucune publication pour l'instant.</div>
+        )}
+        <div className="grid grid-cols-3 gap-1.5">
+          {posts.map((p) => {
+            const locked = !isMe && p.visibility === "subscribers" && !subbed;
+            const ppvLocked = p.visibility === "ppv" && !purchases.has(p.id) && !isMe;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setOpenPost(p)}
+                className="group relative aspect-square overflow-hidden rounded-2xl bg-muted transition-transform hover:scale-[1.02]"
+              >
+                <SignedImage path={p.media_url} className="h-full w-full object-cover transition-transform group-hover:scale-105" blurred={locked || ppvLocked} />
+                {p.visibility !== "public" && (
+                  <div className="absolute right-1.5 top-1.5 rounded-full bg-background/80 p-1 backdrop-blur">
+                    {p.visibility === "ppv" ? <span className="px-1 text-[10px] font-bold">€</span> : <Heart className="h-3 w-3" />}
+                  </div>
+                )}
+                {(locked || ppvLocked) && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-background/40 text-xs font-bold backdrop-blur-sm">
+                    <Lock className="h-4 w-4" />
+                    {ppvLocked && <span>{(p.ppv_price_cents / 100).toFixed(2)}€</span>}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Post detail / purchase modal */}
@@ -238,6 +297,19 @@ function CreatorProfile() {
           </div>
           <PaymentSlider label={`S'abonner — ${(price / 100).toFixed(2)}€`} onConfirm={subscribe} />
           {isAdmin && <button onClick={grantFree} className="w-full rounded-full border border-border py-2 text-xs">Admin : m'abonner gratuitement</button>}
+        </div>
+      </Modal>
+
+      {/* Unsubscribe confirmation */}
+      <Modal open={unsubOpen} onClose={() => setUnsubOpen(false)} title="Se désabonner ?">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Vous perdrez l'accès aux contenus abonnés de <span className="font-semibold text-foreground">@{creator.username}</span> et à la messagerie. Cette action est immédiate.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setUnsubOpen(false)} className="flex-1 rounded-full border border-border py-3 text-sm font-semibold">Annuler</button>
+            <button onClick={unsubscribe} className="flex-1 rounded-full bg-destructive py-3 text-sm font-semibold text-destructive-foreground">Se désabonner</button>
+          </div>
         </div>
       </Modal>
     </div>
