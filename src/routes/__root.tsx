@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Outlet, createRootRouteWithContext, useRouter, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, createRootRouteWithContext, useRouter, useRouterState, HeadContent, Scripts } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -76,7 +76,8 @@ function RootComponent() {
 
 function Shell() {
   const [loading, setLoading] = useState(true);
-  const { ban, ready } = useAuth();
+  const { session, ban, ready } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   if (loading || !ready) {
     return <HushLoader onDone={() => setLoading(false)} />;
@@ -95,10 +96,13 @@ function Shell() {
     );
   }
 
+  const showNav = !!session && pathname !== "/auth";
+
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className={`min-h-screen bg-background ${showNav ? "pb-32" : ""}`}>
       <Outlet />
-      <BottomNav />
+      {showNav && <BottomNav />}
     </div>
   );
 }
+
