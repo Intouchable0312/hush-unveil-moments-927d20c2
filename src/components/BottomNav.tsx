@@ -1,5 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, Sparkles, Heart, User, Plus } from "lucide-react";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const L: any = Link;
 
 type Tab = { to: string; icon: typeof Home; label: string; center?: boolean };
 const tabs: Tab[] = [
