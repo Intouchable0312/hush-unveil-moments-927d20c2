@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { HushLogo } from "@/components/HushLogo";
 import { SignedImage } from "@/components/SignedImage";
-import { Heart, Lock, Sparkles } from "lucide-react";
+import { Heart, Lock, Sparkles, ChevronDown } from "lucide-react";
 import { PaymentSlider } from "@/components/PaymentSlider";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -19,12 +19,16 @@ type Post = {
   creator: { username: string | null; avatar_url: string | null } | null;
 };
 
+type Creator = { id: string; username: string | null; avatar_url: string | null; hashtags: string[]; score: number };
+
 function Home() {
-  const { session, ready } = useAuth();
+  const { session, profile, ready } = useAuth();
   const nav = useNavigate();
   const [posts, setPosts] = useState<Post[] | null>(null);
   const [subs, setSubs] = useState<Set<string>>(new Set());
   const [purchases, setPurchases] = useState<Set<string>>(new Set());
+  const [creators, setCreators] = useState<Creator[]>([]);
+  const [showSuggest, setShowSuggest] = useState(false);
 
   useEffect(() => { if (ready && !session) nav({ to: "/auth" as string as any }); }, [ready, session, nav]);
 
@@ -37,19 +41,52 @@ function Home() {
       setSubs(new Set((s ?? []).map((r) => r.creator_id)));
       const { data: p } = await supabase.from("post_purchases").select("post_id").eq("buyer_id", session.user.id);
       setPurchases(new Set((p ?? []).map((r) => r.post_id)));
+      const { data: cs } = await supabase.from("profiles").select("id,username,avatar_url,hashtags").eq("is_creator", true).neq("id", session.user.id).limit(30);
+      const mine = new Set((profile?.hashtags ?? []).map((h) => h.toLowerCase()));
+      const scored: Creator[] = (cs ?? []).map((c) => ({
+        ...c as Creator,
+        score: (c.hashtags ?? []).reduce((n: number, h: string) => n + (mine.has(h.toLowerCase()) ? 1 : 0), 0),
+      }));
+      scored.sort((a, b) => b.score - a.score);
+      setCreators(scored.slice(0, 12));
     })();
-  }, [session]);
+  }, [session, profile]);
 
   if (!ready || !session) return null;
 
   return (
     <div className="mx-auto max-w-lg px-4 pt-6">
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-4 flex items-center justify-between">
         <div className="h-8 w-24 text-foreground"><HushLogo className="h-full w-full" /></div>
-        <L to="/suggestions" className="flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold">
+        <button
+          onClick={() => setShowSuggest((v) => !v)}
+          className={`flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold ${showSuggest ? "bg-primary text-primary-foreground" : "bg-card"}`}
+          aria-expanded={showSuggest}
+        >
           <Sparkles className="h-3.5 w-3.5" /> Suggestions
-        </L>
+          <ChevronDown className={`h-3 w-3 transition-transform ${showSuggest ? "rotate-180" : ""}`} />
+        </button>
       </header>
+
+      {showSuggest && (
+        <div className="mb-6 rounded-3xl border border-border bg-card p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Créateurs pour vous</p>
+          {creators.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucun créateur à suggérer pour l'instant.</p>
+          ) : (
+            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+              {creators.map((c) => (
+                <L key={c.id} to={`/u/${c.username ?? ""}`} className="shrink-0 text-center">
+                  <div className="h-16 w-16 overflow-hidden rounded-full bg-muted ring-2 ring-border">
+                    {c.avatar_url && <SignedImage path={c.avatar_url} className="h-full w-full object-cover" />}
+                  </div>
+                  <p className="mt-1 max-w-[4.5rem] truncate text-[11px] font-semibold">@{c.username}</p>
+                </L>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {posts === null && <div className="py-16 text-center text-sm text-muted-foreground">Chargement…</div>}
       {posts && posts.length === 0 && (
