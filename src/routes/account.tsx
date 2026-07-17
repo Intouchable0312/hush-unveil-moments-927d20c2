@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SignedImage } from "@/components/SignedImage";
 import { ImageCropperModal } from "@/components/ImageCropperModal";
 import { ActionSlider } from "@/components/ActionSlider";
-import { LogOut, Shield, Camera, ImagePlus } from "lucide-react";
+import { LogOut, Shield, Camera, ImagePlus, Trash2, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/account")({ component: Account });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
