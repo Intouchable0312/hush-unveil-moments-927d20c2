@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { HushLogo } from "@/components/HushLogo";
 import { SignedImage } from "@/components/SignedImage";
-import { Heart, Lock, Sparkles, ChevronDown } from "lucide-react";
+import { Heart, Lock, Sparkles, ChevronDown, Search, X } from "lucide-react";
 import { PaymentSlider } from "@/components/PaymentSlider";
 
 export const Route = createFileRoute("/")({ component: Home });
