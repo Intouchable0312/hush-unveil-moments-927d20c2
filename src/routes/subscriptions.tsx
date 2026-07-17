@@ -6,6 +6,25 @@ import { PostCard } from "@/routes/index";
 
 export const Route = createFileRoute("/subscriptions")({ component: Subs });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Post = any;
+
+async function attachCreators(rows: Post[]) {
+  const creatorIds = [...new Set(rows.map((row) => row.creator_id).filter(Boolean))];
+  if (creatorIds.length === 0) return rows.map((row) => ({ ...row, creator: null }));
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id,username,avatar_url")
+    .in("id", creatorIds);
+
+  const profilesById = new Map((profiles ?? []).map((creator) => [creator.id, creator]));
+  return rows.map((row) => {
+    const creator = profilesById.get(row.creator_id);
+    return { ...row, creator: creator ? { username: creator.username, avatar_url: creator.avatar_url } : null };
+  });
+}
+
 function Subs() {
   const { session } = useAuth();
   const [posts, setPosts] = useState<unknown[] | null>(null);
@@ -17,8 +36,8 @@ function Subs() {
       const { data: subs } = await supabase.from("subscriptions").select("creator_id").eq("fan_id", session.user.id).eq("active", true);
       const ids = (subs ?? []).map((s) => s.creator_id);
       if (ids.length === 0) { setPosts([]); return; }
-      const { data } = await supabase.from("posts").select("*, creator:profiles!posts_creator_id_fkey(username,avatar_url)").in("creator_id", ids).order("created_at", { ascending: false });
-      setPosts(data ?? []);
+      const { data } = await supabase.from("posts").select("*").in("creator_id", ids).order("created_at", { ascending: false });
+      setPosts(await attachCreators(data ?? []));
       const { data: p } = await supabase.from("post_purchases").select("post_id").eq("buyer_id", session.user.id);
       setPurchases(new Set((p ?? []).map((r) => r.post_id)));
     })();
