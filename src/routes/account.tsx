@@ -23,6 +23,7 @@ function Account() {
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropAspect, setCropAspect] = useState(1);
   const [cropKind, setCropKind] = useState<"avatar" | "cover">("avatar");
+  const [myPosts, setMyPosts] = useState<Array<{ id: string; media_url: string; visibility: string; ppv_price_cents: number; created_at: string; description: string | null }>>([]);
 
   useEffect(() => {
     if (!session) { nav({ to: "/auth" as string as any }); return; }
