@@ -209,8 +209,38 @@ function Account() {
             <button onClick={savePlans} disabled={saving} className="mt-4 w-full rounded-full bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-50">{saving ? "…" : "Enregistrer mes tarifs"}</button>
           </div>
           <p className="text-xs text-muted-foreground">💡 Le contrôle des photos que vos abonnés vous envoient se fait maintenant conversation par conversation, directement dans la discussion.</p>
+
+          {/* Mes publications */}
+          <div className="rounded-3xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-semibold">Mes publications ({myPosts.length})</p>
+              <L to="/post" className="flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">
+                <Plus className="h-3 w-3" /> Nouvelle
+              </L>
+            </div>
+            {myPosts.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">Aucune publication pour l'instant.</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {myPosts.map((p) => (
+                  <div key={p.id} className="group relative aspect-square overflow-hidden rounded-xl bg-muted">
+                    <SignedImage path={p.media_url} className="h-full w-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent p-1.5">
+                      <span className="rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
+                        {p.visibility === "ppv" ? `${(p.ppv_price_cents / 100).toFixed(0)}€` : p.visibility === "subscribers" ? "Abo" : "Pub"}
+                      </span>
+                      <button onClick={() => deletePost(p.id)} className="rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition group-hover:opacity-100">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
+
 
       {tab === "preferences" && (
         <div className="space-y-3">
