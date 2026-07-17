@@ -44,6 +44,7 @@ export type Database = {
           conversation_id: string
           created_at: string
           id: string
+          last_read_at: string | null
           updated_at: string
           user_id: string
         }
@@ -52,6 +53,7 @@ export type Database = {
           conversation_id: string
           created_at?: string
           id?: string
+          last_read_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -60,6 +62,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           id?: string
+          last_read_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -424,6 +427,7 @@ export type Database = {
         Args: { _creator: string; _fan: string }
         Returns: boolean
       }
+      unread_messages_count: { Args: { _user: string }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "user"
