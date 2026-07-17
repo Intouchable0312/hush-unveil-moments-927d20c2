@@ -97,3 +97,13 @@
   0% { transform: translateX(0) skewX(-12deg); }
   100% { transform: translateX(400%) skewX(-12deg); }
 }
+
+@keyframes slidehint {
+  0%, 100% { opacity: 0.25; transform: translateX(0); }
+  50% { opacity: 0.9; transform: translateX(4px); }
+}
+
+@keyframes scale-in {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
