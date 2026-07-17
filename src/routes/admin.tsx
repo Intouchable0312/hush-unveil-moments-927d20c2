@@ -144,7 +144,7 @@ function Admin() {
                 <button onClick={() => setGiftCreator(null)} className="text-xs underline">Changer</button>
               </div>
             ) : (
-              <UserSearchPicker creatorsOnly onPick={setGiftCreator} placeholder="Rechercher un créateur" />
+              <UserSearchPicker onPick={setGiftCreator} placeholder="Rechercher un créateur (pseudo ou nom)" />
             )}
           </div>
           <div>

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SignedImage } from "@/components/SignedImage";
 import { ImageCropperModal } from "@/components/ImageCropperModal";
 import { ActionSlider } from "@/components/ActionSlider";
-import { LogOut, Shield, Camera, ImagePlus } from "lucide-react";
+import { LogOut, Shield, Camera, ImagePlus, Trash2, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/account")({ component: Account });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,6 +23,7 @@ function Account() {
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropAspect, setCropAspect] = useState(1);
   const [cropKind, setCropKind] = useState<"avatar" | "cover">("avatar");
+  const [myPosts, setMyPosts] = useState<Array<{ id: string; media_url: string; visibility: string; ppv_price_cents: number; created_at: string; description: string | null }>>([]);
 
   useEffect(() => {
     if (!session) { nav({ to: "/auth" as string as any }); return; }
@@ -51,6 +52,28 @@ function Account() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [session, refresh]);
+
+  // Load my posts + live updates
+  const loadMyPosts = async () => {
+    if (!session) return;
+    const { data } = await supabase.from("posts").select("id,media_url,visibility,ppv_price_cents,created_at,description").eq("creator_id", session.user.id).order("created_at", { ascending: false });
+    setMyPosts(data ?? []);
+  };
+  useEffect(() => {
+    if (!session) return;
+    loadMyPosts();
+    const ch = supabase.channel(`myposts-${session.user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts", filter: `creator_id=eq.${session.user.id}` }, loadMyPosts)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  const deletePost = async (id: string) => {
+    if (!confirm("Supprimer cette publication ?")) return;
+    await supabase.from("posts").delete().eq("id", id);
+  };
+
 
   const saveProfile = async () => {
     if (!session) return;
@@ -186,8 +209,38 @@ function Account() {
             <button onClick={savePlans} disabled={saving} className="mt-4 w-full rounded-full bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-50">{saving ? "…" : "Enregistrer mes tarifs"}</button>
           </div>
           <p className="text-xs text-muted-foreground">💡 Le contrôle des photos que vos abonnés vous envoient se fait maintenant conversation par conversation, directement dans la discussion.</p>
+
+          {/* Mes publications */}
+          <div className="rounded-3xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-semibold">Mes publications ({myPosts.length})</p>
+              <L to="/post" className="flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">
+                <Plus className="h-3 w-3" /> Nouvelle
+              </L>
+            </div>
+            {myPosts.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">Aucune publication pour l'instant.</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {myPosts.map((p) => (
+                  <div key={p.id} className="group relative aspect-square overflow-hidden rounded-xl bg-muted">
+                    <SignedImage path={p.media_url} className="h-full w-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent p-1.5">
+                      <span className="rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
+                        {p.visibility === "ppv" ? `${(p.ppv_price_cents / 100).toFixed(0)}€` : p.visibility === "subscribers" ? "Abo" : "Pub"}
+                      </span>
+                      <button onClick={() => deletePost(p.id)} className="rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition group-hover:opacity-100">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
+
 
       {tab === "preferences" && (
         <div className="space-y-3">
