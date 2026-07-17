@@ -63,14 +63,19 @@ function Account() {
 
   const savePlans = async () => {
     if (!session) return;
-    await supabase.from("subscription_plans").upsert({
+    setSaving(true);
+    const { error } = await supabase.from("subscription_plans").upsert({
       creator_id: session.user.id,
       price_monthly_cents: Math.round(Number(plans.monthly || 0) * 100),
       price_quarterly_cents: Math.round(Number(plans.quarterly || 0) * 100),
       price_yearly_cents: Math.round(Number(plans.yearly || 0) * 100),
-    });
-    await supabase.from("profiles").update({ is_creator: true }).eq("id", session.user.id);
+    }, { onConflict: "creator_id" });
+    if (error) { alert("Erreur : " + error.message); setSaving(false); return; }
+    const { error: e2 } = await supabase.from("profiles").update({ is_creator: true }).eq("id", session.user.id);
+    if (e2) { alert("Erreur profil : " + e2.message); setSaving(false); return; }
     await refresh();
+    setSaving(false);
+    alert("Tarifs enregistrés ✓");
   };
 
   const toggleTheme = async () => {
