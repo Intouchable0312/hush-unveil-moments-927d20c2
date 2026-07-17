@@ -119,15 +119,17 @@ function Account() {
   return (
     <div className="mx-auto max-w-lg px-4 pt-6">
       {/* Banner + avatar */}
-      <div className="relative mb-16 overflow-hidden rounded-3xl border border-border bg-muted">
-        <div className="aspect-[3/1] w-full bg-gradient-to-br from-secondary to-accent">
-          {profile.cover_url && <SignedImage path={profile.cover_url} className="h-full w-full object-cover" />}
+      <div className="relative mb-16">
+        <div className="relative overflow-hidden rounded-3xl border border-border bg-muted">
+          <div className="aspect-[3/1] w-full bg-gradient-to-br from-secondary to-accent">
+            {profile.cover_url && <SignedImage path={profile.cover_url} className="h-full w-full object-cover" />}
+          </div>
+          <label className="absolute right-3 top-3 flex cursor-pointer items-center gap-1.5 rounded-full bg-background/80 px-3 py-1.5 text-xs font-semibold backdrop-blur">
+            <ImagePlus className="h-3.5 w-3.5" /> Bannière
+            <input type="file" accept="image/*" className="hidden" onChange={pickImage("cover")} />
+          </label>
         </div>
-        <label className="absolute right-3 top-3 flex cursor-pointer items-center gap-1.5 rounded-full bg-background/80 px-3 py-1.5 text-xs font-semibold backdrop-blur">
-          <ImagePlus className="h-3.5 w-3.5" /> Bannière
-          <input type="file" accept="image/*" className="hidden" onChange={pickImage("cover")} />
-        </label>
-        <label className="absolute -bottom-12 left-5 flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-full border-4 border-background bg-muted">
+        <label className="absolute -bottom-12 left-5 flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-full border-4 border-background bg-muted shadow-lg">
           {profile.avatar_url ? <SignedImage path={profile.avatar_url} className="h-full w-full object-cover" /> : <Camera className="h-6 w-6 text-muted-foreground" />}
           <input type="file" accept="image/*" className="hidden" onChange={pickImage("avatar")} />
         </label>
