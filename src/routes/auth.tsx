@@ -59,17 +59,17 @@ function AuthPage() {
       </div>
 
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-10">
-        <div className="mx-auto mb-2 h-16 w-56 text-foreground"><HushLogo className="h-full w-full" /></div>
-        <p className="mb-10 text-center text-xs uppercase tracking-[0.4em] text-muted-foreground">
+        <div className="mx-auto mb-2 h-16 w-56 text-foreground animate-hush-land"><HushLogo className="h-full w-full" /></div>
+        <p className="mb-10 text-center text-xs uppercase tracking-[0.4em] text-muted-foreground animate-auth-rise" style={{ animationDelay: "0.5s" }}>
           {mode === "login" ? "Bon retour" : "Bienvenue"}
         </p>
 
-        <div className="mb-6 flex rounded-full border border-border bg-card/50 p-1 backdrop-blur">
+        <div className="mb-6 flex rounded-full border border-border bg-card/50 p-1 backdrop-blur animate-auth-rise" style={{ animationDelay: "0.7s" }}>
           <button className={`flex-1 rounded-full py-2.5 text-sm font-semibold transition-all ${mode === "login" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"}`} onClick={() => setMode("login")}>Connexion</button>
           <button className={`flex-1 rounded-full py-2.5 text-sm font-semibold transition-all ${mode === "signup" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"}`} onClick={() => setMode("signup")}>Créer un compte</button>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 animate-auth-rise" style={{ animationDelay: "0.85s" }}>
           {mode === "signup" && (
             <div className="grid grid-cols-2 gap-3">
               <input required placeholder="Prénom" className="w-full rounded-2xl border border-border bg-card px-4 py-3 outline-none focus:ring-2 focus:ring-primary/30" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
@@ -84,7 +84,7 @@ function AuthPage() {
           {err && <p className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">{err}</p>}
         </div>
 
-        <div className="mt-6">
+        <div className="mt-6 animate-auth-rise" style={{ animationDelay: "1s" }}>
           <ActionSlider
             label={mode === "login" ? "Glissez pour vous connecter" : "Glissez pour créer votre compte"}
             onConfirm={submit}
@@ -95,6 +95,7 @@ function AuthPage() {
           </p>
         </div>
       </div>
+
     </div>
   );
 }
