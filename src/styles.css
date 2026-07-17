@@ -92,3 +92,8 @@
   50% { filter: drop-shadow(0 0 24px rgba(0,0,0,0.15)); }
 }
 .hush-settled { animation: hush-breathe 5s ease-in-out infinite; }
+
+@keyframes shimmer {
+  0% { transform: translateX(0) skewX(-12deg); }
+  100% { transform: translateX(400%) skewX(-12deg); }
+}
