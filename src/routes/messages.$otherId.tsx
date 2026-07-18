@@ -5,8 +5,8 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { SignedImage } from "@/components/SignedImage";
 import { uploadMedia } from "@/lib/media";
-import { PaymentSlider } from "@/components/PaymentSlider";
-import { Send, Image as ImageIcon, DollarSign, ImageOff, ImagePlus } from "lucide-react";
+import { AmbassadorBadge } from "@/components/AmbassadorBadge";
+import { Send, Image as ImageIcon, DollarSign, ImageOff, ImagePlus, Lock } from "lucide-react";
 
 export const Route = createFileRoute("/messages/$otherId")({ component: Chat });
 
@@ -23,42 +23,50 @@ function Chat() {
   const [text, setText] = useState("");
   const [ppvPrice, setPpvPrice] = useState("");
   const [showPpv, setShowPpv] = useState(false);
-  const [isCreator, setIsCreator] = useState(false);
-  // Per-conversation photo settings
-  const [myAllow, setMyAllow] = useState(true); // I accept photos from other
-  const [otherAllow, setOtherAllow] = useState(true); // Other accepts photos from me
+  const [myAllow, setMyAllow] = useState(false);
+  const [otherAllow, setOtherAllow] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Load conversation (bidirectional) and messages
   useEffect(() => {
     if (!session) return;
     (async () => {
       const { data: o } = await supabase.from("profiles").select("*").eq("id", otherId).maybeSingle();
       setOther(o);
-      const { data: sub } = await supabase.from("subscriptions").select("*").eq("fan_id", session.user.id).eq("creator_id", otherId).eq("active", true).maybeSingle();
-      const iAmFan = !!sub;
-      setIsCreator(!iAmFan);
-      const fanId = iAmFan ? session.user.id : otherId;
-      const creatorId = iAmFan ? otherId : session.user.id;
-      let { data: conv } = await supabase.from("conversations").select("*").eq("fan_id", fanId).eq("creator_id", creatorId).maybeSingle();
-      if (!conv && iAmFan) {
-        const { data: c2, error } = await supabase.from("conversations").insert({ fan_id: fanId, creator_id: creatorId }).select().single();
-        if (!error) conv = c2;
+
+      // Find existing conv either direction, using SECURITY DEFINER RPC
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingId } = await (supabase as any).rpc("find_conversation", { _a: session.user.id, _b: otherId });
+      let cid: string | null = existingId ?? null;
+
+      if (!cid) {
+        // Determine who is fan / creator for the insert (RLS requires fan is subscribed)
+        const { data: iSubToOther } = await supabase
+          .from("subscriptions").select("id").eq("fan_id", session.user.id).eq("creator_id", otherId).eq("active", true).maybeSingle();
+        const iAmFan = !!iSubToOther;
+        const fanId = iAmFan ? session.user.id : otherId;
+        const creatorId = iAmFan ? otherId : session.user.id;
+        if (iAmFan) {
+          const { data: c2, error } = await supabase.from("conversations").insert({ fan_id: fanId, creator_id: creatorId }).select().single();
+          if (!error && c2) cid = c2.id;
+        }
       }
-      if (!conv) return;
-      setConvId(conv.id);
-      const { data: msgs } = await supabase.from("messages").select("*").eq("conversation_id", conv.id).order("created_at");
+      if (!cid) return;
+      setConvId(cid);
+
+      const { data: msgs } = await supabase.from("messages").select("*").eq("conversation_id", cid).order("created_at");
       setMessages(msgs ?? []);
       const { data: pu } = await supabase.from("message_media_purchases").select("message_id").eq("buyer_id", session.user.id);
       setPurchases(new Set((pu ?? []).map((r) => r.message_id)));
-      const { data: settings } = await supabase.from("conversation_settings").select("*").eq("conversation_id", conv.id);
+      const { data: settings } = await supabase.from("conversation_settings").select("*").eq("conversation_id", cid);
       const mine = settings?.find((s) => s.user_id === session.user.id);
       const theirs = settings?.find((s) => s.user_id === otherId);
-      setMyAllow(mine ? mine.allow_photos_from_other : true);
-      setOtherAllow(theirs ? theirs.allow_photos_from_other : true);
+      setMyAllow(mine ? !!mine.allow_photos_from_other : false);
+      setOtherAllow(theirs ? !!theirs.allow_photos_from_other : false);
     })();
   }, [session, otherId]);
 
-  // Mark as read whenever a message arrives while chat is open, or on mount
+  // Mark read
   useEffect(() => {
     if (!convId || !session) return;
     supabase.from("conversation_settings").upsert(
@@ -67,16 +75,19 @@ function Chat() {
     ).then(() => {});
   }, [convId, session, messages.length]);
 
+  // Realtime
   useEffect(() => {
     if (!convId || !session) return;
     const ch = supabase.channel(`conv-${convId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${convId}` },
         (p) => setMessages((m) => [...m, p.new]))
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "message_media_purchases", filter: `buyer_id=eq.${session.user.id}` },
+        (p) => setPurchases((prev) => new Set([...prev, (p.new as Any).message_id])))
       .on("postgres_changes", { event: "*", schema: "public", table: "conversation_settings", filter: `conversation_id=eq.${convId}` },
         (p) => {
           const row: Any = p.new ?? p.old;
           if (!row) return;
-          const allow = "allow_photos_from_other" in (p.new ?? {}) ? (p.new as Any).allow_photos_from_other : true;
+          const allow = "allow_photos_from_other" in (p.new ?? {}) ? (p.new as Any).allow_photos_from_other : false;
           if (row.user_id === session.user.id) setMyAllow(allow);
           else if (row.user_id === otherId) setOtherAllow(allow);
         })
@@ -89,7 +100,7 @@ function Chat() {
   const togglePhotoPermission = async () => {
     if (!convId || !session) return;
     const next = !myAllow;
-    setMyAllow(next); // optimistic
+    setMyAllow(next);
     await supabase.from("conversation_settings").upsert(
       { conversation_id: convId, user_id: session.user.id, allow_photos_from_other: next },
       { onConflict: "conversation_id,user_id" }
@@ -116,20 +127,24 @@ function Chat() {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ kind: "message_media", message_id: mid }),
     });
-    const j = await res.json() as { url?: string };
+    const j = await res.json() as { url?: string; error?: string };
     if (j.url) window.location.href = j.url;
+    else alert(j.error ?? "Erreur de paiement");
   };
 
-  const canSetPpv = isCreator;
-
   return (
-    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-lg flex-col px-4 pt-6">
+    <div className="mx-auto flex h-[calc(100vh-9rem)] max-w-lg flex-col px-4 pt-4">
       <header className="mb-3 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-muted">
             {other?.avatar_url && <SignedImage path={other.avatar_url} className="h-full w-full object-cover" />}
           </div>
-          <p className="truncate font-bold">@{other?.username}</p>
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 truncate font-bold">
+              @{other?.username}
+              {other?.is_ambassador && <AmbassadorBadge />}
+            </p>
+          </div>
         </div>
         <button
           onClick={togglePhotoPermission}
@@ -153,6 +168,7 @@ function Chat() {
                     <SignedImage path={m.media_url} className="h-full w-full object-cover" blurred={locked} />
                     {locked && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/60 p-2">
+                        <Lock className="h-5 w-5" />
                         <p className="text-xs font-bold text-foreground">Média premium {(m.ppv_price_cents / 100).toFixed(2)}€</p>
                         <button onClick={() => buyMedia(m.id)} className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground">Déverrouiller</button>
                       </div>
@@ -168,8 +184,8 @@ function Chat() {
       </div>
 
       <div className="mt-3 space-y-2">
-        {showPpv && canSetPpv && (
-          <input placeholder="Prix (€)" value={ppvPrice} onChange={(e) => setPpvPrice(e.target.value)} className="w-full rounded-full border border-border bg-card px-4 py-2 text-sm" />
+        {showPpv && (
+          <input placeholder="Prix (€) — 0 = gratuit" value={ppvPrice} onChange={(e) => setPpvPrice(e.target.value)} className="w-full rounded-full border border-border bg-card px-4 py-2 text-sm" />
         )}
         <div className="flex items-center gap-2">
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Message…" className="flex-1 rounded-full border border-border bg-card px-4 py-3" onKeyDown={(e) => e.key === "Enter" && text.trim() && send(text.trim())} />
@@ -179,10 +195,14 @@ function Chat() {
               <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && sendPhoto(e.target.files[0])} />
             </label>
           )}
-          {canSetPpv && otherAllow && <button onClick={() => setShowPpv(!showPpv)} className={`rounded-full p-3 ${showPpv ? "bg-primary text-primary-foreground" : "bg-secondary"}`}><DollarSign className="h-5 w-5" /></button>}
+          {otherAllow && (
+            <button onClick={() => setShowPpv(!showPpv)} title="Prix pour la prochaine photo" className={`rounded-full p-3 ${showPpv ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>
+              <DollarSign className="h-5 w-5" />
+            </button>
+          )}
           <button onClick={() => text.trim() && send(text.trim())} className="rounded-full bg-primary p-3 text-primary-foreground"><Send className="h-5 w-5" /></button>
         </div>
-        {!otherAllow && <p className="text-center text-xs text-muted-foreground">📵 Cette personne n'accepte pas de photos dans cette conversation.</p>}
+        {!otherAllow && <p className="text-center text-xs text-muted-foreground">📵 Cette personne n'a pas activé la réception de photos.</p>}
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider, useAuth } from "@/lib/auth";
-import { HushLoader } from "@/components/HushLoader";
+import { GlobalLogo } from "@/components/GlobalLogo";
 import { BottomNav } from "@/components/BottomNav";
 import { HushLogo } from "@/components/HushLogo";
 
@@ -38,7 +38,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" },
       { title: "Hush — Créateurs & abonnés" },
       { name: "description", content: "Hush : plateforme d'abonnement pour créateurs. Publiez, échangez et monétisez vos contenus." },
       { property: "og:title", content: "Hush — Créateurs & abonnés" },
@@ -62,7 +62,10 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="fr">
       <head><HeadContent /></head>
-      <body><div id="app-root">{children}</div><Scripts /></body>
+      <body style={{ touchAction: "manipulation", WebkitTextSizeAdjust: "100%" }}>
+        <div id="app-root">{children}</div>
+        <Scripts />
+      </body>
     </html>
   );
 }
@@ -79,13 +82,12 @@ function RootComponent() {
 }
 
 function Shell() {
-  const [loading, setLoading] = useState(true);
+  const [logoPhase, setLogoPhase] = useState<"cover" | "settling" | "done">("cover");
   const { session, ban, ready } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  if (loading || !ready) {
-    return <HushLoader onDone={() => setLoading(false)} />;
-  }
+  const showBackdrop = logoPhase === "cover" || !ready;
+  const target: "corner" | "auth" = session ? "corner" : "auth";
 
   if (ban) {
     return (
@@ -100,13 +102,31 @@ function Shell() {
     );
   }
 
-  const showNav = !!session && pathname !== "/auth";
+  const showNav = !!session && pathname !== "/auth" && logoPhase !== "cover";
 
   return (
-    <div className={`min-h-screen bg-background ${showNav ? "pb-32" : ""}`}>
-      <Outlet />
+    <div className={`relative min-h-screen bg-background ${showNav ? "pb-32" : ""}`}>
+      {/* Backdrop while drawing */}
+      {showBackdrop && (
+        <div className="fixed inset-0 z-[90] bg-background transition-opacity duration-500" />
+      )}
+
+      {/* Persistent logo (drawing → settling → settled) */}
+      <GlobalLogo
+        target={target}
+        onSettleStart={() => setLogoPhase("settling")}
+        onSettled={() => setLogoPhase("done")}
+      />
+
+      {/* App content, fades in as the logo settles */}
+      <div
+        className="transition-opacity duration-500"
+        style={{ opacity: logoPhase === "cover" ? 0 : 1, paddingTop: session && logoPhase !== "cover" ? "3.75rem" : undefined }}
+      >
+        <Outlet />
+      </div>
+
       {showNav && <BottomNav />}
     </div>
   );
 }
-
