@@ -7,6 +7,7 @@ import { SignedImage } from "@/components/SignedImage";
 import { PaymentSlider } from "@/components/PaymentSlider";
 import { Modal } from "@/components/Modal";
 import { MessageCircle, Lock, Sparkles, Check, Image as ImageIcon, Heart, XCircle } from "lucide-react";
+import { AmbassadorBadge } from "@/components/AmbassadorBadge";
 
 export const Route = createFileRoute("/u/$username")({ component: CreatorProfile });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
