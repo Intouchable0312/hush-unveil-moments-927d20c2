@@ -160,8 +160,9 @@ function CreatorProfile() {
               {creator.avatar_url && <SignedImage path={creator.avatar_url} className="h-full w-full object-cover" />}
             </div>
             <div className="flex-1 pb-1">
-              <h1 className="flex items-center gap-1.5 text-xl font-bold leading-tight">
+              <h1 className="flex flex-wrap items-center gap-1.5 text-xl font-bold leading-tight">
                 @{creator.username}
+                {creator.is_ambassador && <AmbassadorBadge size="md" />}
                 {subbed && <span title="Abonné" className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"><Check className="h-3 w-3" /></span>}
               </h1>
               <p className="text-xs text-muted-foreground">{creator.first_name} {creator.last_name}</p>
