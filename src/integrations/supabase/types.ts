@@ -280,6 +280,7 @@ export type Database = {
           first_name: string | null
           hashtags: string[]
           id: string
+          is_ambassador: boolean
           is_creator: boolean
           last_name: string | null
           phone: string | null
@@ -297,6 +298,7 @@ export type Database = {
           first_name?: string | null
           hashtags?: string[]
           id: string
+          is_ambassador?: boolean
           is_creator?: boolean
           last_name?: string | null
           phone?: string | null
@@ -314,6 +316,7 @@ export type Database = {
           first_name?: string | null
           hashtags?: string[]
           id?: string
+          is_ambassador?: boolean
           is_creator?: boolean
           last_name?: string | null
           phone?: string | null
@@ -416,6 +419,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_overview_stats: { Args: never; Returns: Json }
+      admin_recent_purchases: {
+        Args: { _limit?: number }
+        Returns: {
+          amount_cents: number
+          at: string
+          buyer: string
+          kind: string
+          ref: string
+          seller: string
+        }[]
+      }
+      admin_top_creators: {
+        Args: { _limit?: number }
+        Returns: {
+          id: string
+          posts: number
+          revenue_cents: number
+          subscribers: number
+          username: string
+        }[]
+      }
+      admin_user_stats: { Args: { _uid: string }; Returns: Json }
+      find_conversation: { Args: { _a: string; _b: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -426,6 +453,21 @@ export type Database = {
       is_subscribed: {
         Args: { _creator: string; _fan: string }
         Returns: boolean
+      }
+      list_my_conversations: {
+        Args: { _user: string }
+        Returns: {
+          id: string
+          last_body: string
+          last_has_media: boolean
+          last_message_at: string
+          other_avatar_url: string
+          other_id: string
+          other_is_ambassador: boolean
+          other_is_creator: boolean
+          other_username: string
+          unread: number
+        }[]
       }
       unread_messages_count: { Args: { _user: string }; Returns: number }
     }
