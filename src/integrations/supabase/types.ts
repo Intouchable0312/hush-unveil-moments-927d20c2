@@ -443,6 +443,7 @@ export type Database = {
       }
       admin_user_stats: { Args: { _uid: string }; Returns: Json }
       find_conversation: { Args: { _a: string; _b: string }; Returns: string }
+      get_or_create_conversation: { Args: { _other: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -455,7 +456,7 @@ export type Database = {
         Returns: boolean
       }
       list_my_conversations: {
-        Args: { _user: string }
+        Args: { _user?: string }
         Returns: {
           id: string
           last_body: string
@@ -469,7 +470,7 @@ export type Database = {
           unread: number
         }[]
       }
-      unread_messages_count: { Args: { _user: string }; Returns: number }
+      unread_messages_count: { Args: { _user?: string }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "user"

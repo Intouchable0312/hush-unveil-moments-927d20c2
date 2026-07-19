@@ -13,9 +13,9 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
         const raw = await request.text();
         let event: Stripe.Event;
         const secret = process.env.STRIPE_WEBHOOK_SECRET;
+        if (!secret) return new Response("webhook secret missing", { status: 500 });
         try {
-          if (secret) event = stripe.webhooks.constructEvent(raw, sig, secret);
-          else event = JSON.parse(raw) as Stripe.Event;
+          event = stripe.webhooks.constructEvent(raw, sig, secret);
         } catch (e) {
           return new Response("invalid", { status: 400 });
         }
