@@ -3,7 +3,6 @@ import { authFetch } from "@/lib/authFetch";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { HushLogo } from "@/components/HushLogo";
 import { SignedImage } from "@/components/SignedImage";
 import { Heart, Lock, Sparkles, ChevronDown, Search, X } from "lucide-react";
 import { PaymentSlider } from "@/components/PaymentSlider";
@@ -62,8 +61,9 @@ function Home() {
   const [purchases, setPurchases] = useState<Set<string>>(new Set());
   const [creators, setCreators] = useState<Creator[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState("");
-  const [searchResults, setSearchResults] = useState<Creator[] | null>(null);
+  const [searchResults, setSearchResults] = useState<Creator[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const cursorRef = useRef(0);
@@ -118,6 +118,40 @@ function Home() {
     })();
     return () => { alive = false; };
   }, [userId, profile]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const ch = supabase.channel("home-creators-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, async () => {
+        const { data: cs } = await supabase.from("profiles").select("id,username,avatar_url,hashtags").eq("is_creator", true).neq("id", userId).limit(30);
+        const mine = new Set((profile?.hashtags ?? []).map((h) => h.toLowerCase()));
+        const scored: Creator[] = (cs ?? []).map((c) => ({
+          ...c as Creator,
+          score: (c.hashtags ?? []).reduce((n: number, h: string) => n + (mine.has(h.toLowerCase()) ? 1 : 0), 0),
+        })).sort((a, b) => b.score - a.score);
+        setCreators(scored.slice(0, 12));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [userId, profile]);
+
+  useEffect(() => {
+    if (!searchOpen || !userId) return;
+    let cancelled = false;
+    const t = window.setTimeout(async () => {
+      const term = q.trim();
+      if (!term) { setSearchResults([]); return; }
+      const safe = term.replace(/[%,]/g, "");
+      const like = `%${safe}%`;
+      const { data } = await supabase.from("profiles")
+        .select("id,username,avatar_url,hashtags")
+        .or(`username.ilike.${like},first_name.ilike.${like},last_name.ilike.${like}`)
+        .eq("is_creator", true)
+        .limit(20);
+      if (!cancelled) setSearchResults(((data ?? []) as Creator[]).map((c) => ({ ...c, score: 0 })));
+    }, 120);
+    return () => { cancelled = true; window.clearTimeout(t); };
+  }, [q, searchOpen, userId]);
 
   const loadMorePosts = useCallback(async () => {
     if (!userId || loadingPageRef.current || !hasMore) return;
@@ -191,7 +225,7 @@ function Home() {
   return (
     <div className="mx-auto max-w-lg px-4 pt-6">
       <header className="mb-4 flex items-center justify-between">
-        <div className="h-8 w-24 text-foreground"><HushLogo className="h-full w-full" /></div>
+        <div />
         <button
           onClick={() => setShowSuggest((v) => !v)}
           className={`flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold ${showSuggest ? "bg-primary text-primary-foreground" : "bg-card"}`}
@@ -203,48 +237,19 @@ function Home() {
       </header>
 
       {/* Search bar */}
-      <div className="mb-4 flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5">
+      <button onClick={() => setSearchOpen(true)} className="mb-4 flex w-full items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-left">
         <Search className="h-4 w-4 text-muted-foreground" />
-        <input
-          value={q}
-          onChange={async (e) => {
-            const v = e.target.value; setQ(v);
-            if (!v.trim()) { setSearchResults(null); return; }
-            const like = `%${v.trim()}%`;
-            const { data } = await supabase.from("profiles")
-              .select("id,username,avatar_url,hashtags")
-              .or(`username.ilike.${like},first_name.ilike.${like},last_name.ilike.${like}`)
-              .eq("is_creator", true)
-              .limit(20);
-            setSearchResults(((data ?? []) as Creator[]).map((c) => ({ ...c, score: 0 })));
-          }}
-          placeholder="Rechercher un créateur…"
-          className="flex-1 bg-transparent text-sm outline-none"
-        />
-        {q && <button onClick={() => { setQ(""); setSearchResults(null); }}><X className="h-4 w-4 text-muted-foreground" /></button>}
-      </div>
+        <span className="flex-1 text-sm text-muted-foreground">Rechercher un créateur…</span>
+      </button>
 
-      {searchResults && (
-        <div className="mb-6 rounded-3xl border border-border bg-card p-3">
-          {searchResults.length === 0 ? (
-            <p className="p-4 text-center text-sm text-muted-foreground">Aucun créateur trouvé</p>
-          ) : (
-            <div className="space-y-1">
-              {searchResults.map((c) => (
-                <L key={c.id} to={`/u/${c.username ?? ""}`} className="flex items-center gap-3 rounded-2xl p-2 hover:bg-secondary">
-                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-muted">
-                    {c.avatar_url && <SignedImage path={c.avatar_url} className="h-full w-full object-cover" />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">@{c.username ?? "—"}</p>
-                    {c.hashtags?.length > 0 && <p className="truncate text-xs text-muted-foreground">{c.hashtags.slice(0, 3).map((h) => `#${h}`).join(" ")}</p>}
-                  </div>
-                </L>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <SearchPanel
+        open={searchOpen}
+        q={q}
+        setQ={setQ}
+        results={searchResults}
+        topCreators={creators}
+        onClose={() => setSearchOpen(false)}
+      />
 
       {showSuggest && (
         <div className="mb-6 rounded-3xl border border-border bg-card p-4">
@@ -290,6 +295,59 @@ function Home() {
         </div>
       )}
     </div>
+  );
+}
+
+function SearchPanel({ open, q, setQ, results, topCreators, onClose }: { open: boolean; q: string; setQ: (v: string) => void; results: Creator[]; topCreators: Creator[]; onClose: () => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => inputRef.current?.focus(), 180);
+    return () => window.clearTimeout(t);
+  }, [open]);
+
+  return (
+    <div className={`fixed inset-0 z-50 bg-background transition-[transform,opacity] duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${open ? "translate-x-0 opacity-100" : "translate-x-full opacity-0 pointer-events-none"}`}>
+      <div className="mx-auto flex min-h-screen max-w-lg flex-col px-4 pb-8 pt-6">
+        <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2.5 shadow-sm">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un créateur…" className="flex-1 bg-transparent text-sm outline-none" />
+          {q && <button onClick={() => setQ("")} aria-label="Effacer"><X className="h-4 w-4 text-muted-foreground" /></button>}
+          <button onClick={onClose} className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">Fermer</button>
+        </div>
+
+        <div className="mt-5 min-h-[11rem] space-y-1">
+          {q.trim() && results.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">Aucun créateur trouvé</p>}
+          {results.map((c) => <CreatorResult key={c.id} creator={c} onClose={onClose} />)}
+        </div>
+
+        <div className="my-5 h-px bg-border" />
+
+        <div className="mb-3 flex items-center justify-between px-1">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Top créatrices</p>
+          <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+        </div>
+        <div className="space-y-1">
+          {topCreators.map((c, i) => <CreatorResult key={c.id} creator={c} rank={i + 1} onClose={onClose} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreatorResult({ creator, rank, onClose }: { creator: Creator; rank?: number; onClose: () => void }) {
+  return (
+    <L to={`/u/${creator.username ?? ""}`} onClick={onClose} className="flex items-center gap-3 rounded-2xl p-2 hover:bg-secondary">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-bold">
+        {creator.avatar_url ? <SignedImage path={creator.avatar_url} className="h-full w-full object-cover" /> : rank ?? ""}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold">@{creator.username ?? "—"}</p>
+        {creator.hashtags?.length > 0 && <p className="truncate text-xs text-muted-foreground">{creator.hashtags.slice(0, 3).map((h) => `#${h}`).join(" ")}</p>}
+      </div>
+      {rank && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold">#{rank}</span>}
+    </L>
   );
 }
 

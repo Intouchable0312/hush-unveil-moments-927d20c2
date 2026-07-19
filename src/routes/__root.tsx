@@ -114,6 +114,7 @@ function Shell() {
       {/* Persistent logo (drawing → settling → settled) */}
       <GlobalLogo
         target={target}
+        replayKey={pathname}
         onSettleStart={() => setLogoPhase("settling")}
         onSettled={() => setLogoPhase("done")}
       />

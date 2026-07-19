@@ -32,7 +32,12 @@ function MessagesList() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any).rpc("list_my_conversations", { _user: session.user.id });
     if (error) { console.error("[messages] rpc error", error); setConvs([]); return; }
-    setConvs((data ?? []) as Row[]);
+    const unique = new Map<string, Row>();
+    ((data ?? []) as Row[]).forEach((row) => {
+      const prev = unique.get(row.other_id);
+      if (!prev || new Date(row.last_message_at).getTime() > new Date(prev.last_message_at).getTime()) unique.set(row.other_id, row);
+    });
+    setConvs([...unique.values()].sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()));
   };
 
   useEffect(() => { reload(); }, [session]);
@@ -46,7 +51,8 @@ function MessagesList() {
       .on("postgres_changes", { event: "*", schema: "public", table: "conversations", filter: `creator_id=eq.${uid}` }, reload)
       .on("postgres_changes", { event: "*", schema: "public", table: "conversation_settings", filter: `user_id=eq.${uid}` }, reload)
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const poll = window.setInterval(reload, 3500);
+    return () => { window.clearInterval(poll); supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 

@@ -26,12 +26,22 @@ function Chat() {
   const [myAllow, setMyAllow] = useState(false);
   const [otherAllow, setOtherAllow] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const loadingRef = useRef(false);
+
+  const loadMessages = async (cid: string) => {
+    const { data: msgs, error } = await supabase.from("messages").select("*").eq("conversation_id", cid).order("created_at");
+    if (!error) setMessages(msgs ?? []);
+  };
 
   // Load conversation (bidirectional) and messages
   useEffect(() => {
     if (!session) return;
+    let alive = true;
     (async () => {
+      if (loadingRef.current) return;
+      loadingRef.current = true;
       const { data: o } = await supabase.from("profiles").select("*").eq("id", otherId).maybeSingle();
+      if (!alive) return;
       setOther(o);
 
       // Find existing conv either direction, using SECURITY DEFINER RPC
@@ -51,19 +61,23 @@ function Chat() {
           if (!error && c2) cid = c2.id;
         }
       }
-      if (!cid) return;
+      if (!alive) return;
+      if (!cid) { loadingRef.current = false; return; }
       setConvId(cid);
 
-      const { data: msgs } = await supabase.from("messages").select("*").eq("conversation_id", cid).order("created_at");
-      setMessages(msgs ?? []);
+      await loadMessages(cid);
       const { data: pu } = await supabase.from("message_media_purchases").select("message_id").eq("buyer_id", session.user.id);
+      if (!alive) return;
       setPurchases(new Set((pu ?? []).map((r) => r.message_id)));
       const { data: settings } = await supabase.from("conversation_settings").select("*").eq("conversation_id", cid);
+      if (!alive) return;
       const mine = settings?.find((s) => s.user_id === session.user.id);
       const theirs = settings?.find((s) => s.user_id === otherId);
       setMyAllow(mine ? !!mine.allow_photos_from_other : false);
       setOtherAllow(theirs ? !!theirs.allow_photos_from_other : false);
+      loadingRef.current = false;
     })();
+    return () => { alive = false; loadingRef.current = false; };
   }, [session, otherId]);
 
   // Mark read
@@ -80,7 +94,7 @@ function Chat() {
     if (!convId || !session) return;
     const ch = supabase.channel(`conv-${convId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${convId}` },
-        (p) => setMessages((m) => [...m, p.new]))
+        (p) => setMessages((m) => m.some((msg) => msg.id === (p.new as Any).id) ? m : [...m, p.new]))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "message_media_purchases", filter: `buyer_id=eq.${session.user.id}` },
         (p) => setPurchases((prev) => new Set([...prev, (p.new as Any).message_id])))
       .on("postgres_changes", { event: "*", schema: "public", table: "conversation_settings", filter: `conversation_id=eq.${convId}` },
@@ -92,7 +106,8 @@ function Chat() {
           else if (row.user_id === otherId) setOtherAllow(allow);
         })
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const poll = window.setInterval(() => { void loadMessages(convId); }, 3000);
+    return () => { window.clearInterval(poll); supabase.removeChannel(ch); };
   }, [convId, session, otherId]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -109,8 +124,15 @@ function Chat() {
 
   const send = async (body?: string, media_url?: string, ppv?: number) => {
     if (!convId || !session) return;
-    await supabase.from("messages").insert({ conversation_id: convId, sender_id: session.user.id, body: body ?? null, media_url: media_url ?? null, ppv_price_cents: ppv ?? 0 });
-    await supabase.from("conversations").update({ last_message_at: new Date().toISOString() }).eq("id", convId);
+    const cleanBody = body?.trim() || null;
+    if (!cleanBody && !media_url) return;
+    const { data, error } = await supabase
+      .from("messages")
+      .insert({ conversation_id: convId, sender_id: session.user.id, body: cleanBody, media_url: media_url ?? null, ppv_price_cents: ppv ?? 0 })
+      .select()
+      .single();
+    if (error) { alert("Message non envoyé. Réessayez."); return; }
+    if (data) setMessages((m) => m.some((msg) => msg.id === data.id) ? m : [...m, data]);
     setText(""); setShowPpv(false); setPpvPrice("");
   };
 
@@ -200,7 +222,7 @@ function Chat() {
               <DollarSign className="h-5 w-5" />
             </button>
           )}
-          <button onClick={() => text.trim() && send(text.trim())} className="rounded-full bg-primary p-3 text-primary-foreground"><Send className="h-5 w-5" /></button>
+          <button onClick={() => send(text)} className="rounded-full bg-primary p-3 text-primary-foreground"><Send className="h-5 w-5" /></button>
         </div>
         {!otherAllow && <p className="text-center text-xs text-muted-foreground">📵 Cette personne n'a pas activé la réception de photos.</p>}
       </div>
