@@ -44,23 +44,10 @@ function Chat() {
       if (!alive) return;
       setOther(o);
 
-      // Find existing conv either direction, using SECURITY DEFINER RPC
+      // One canonical conversation per pair; the backend validates that the current user is allowed.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: existingId } = await (supabase as any).rpc("find_conversation", { _a: session.user.id, _b: otherId });
-      let cid: string | null = existingId ?? null;
-
-      if (!cid) {
-        // Determine who is fan / creator for the insert (RLS requires fan is subscribed)
-        const { data: iSubToOther } = await supabase
-          .from("subscriptions").select("id").eq("fan_id", session.user.id).eq("creator_id", otherId).eq("active", true).maybeSingle();
-        const iAmFan = !!iSubToOther;
-        const fanId = iAmFan ? session.user.id : otherId;
-        const creatorId = iAmFan ? otherId : session.user.id;
-        if (iAmFan) {
-          const { data: c2, error } = await supabase.from("conversations").insert({ fan_id: fanId, creator_id: creatorId }).select().single();
-          if (!error && c2) cid = c2.id;
-        }
-      }
+      const { data: cid, error: convError } = await (supabase as any).rpc("get_or_create_conversation", { _other: otherId });
+      if (convError) console.error("[messages] conversation error", convError);
       if (!alive) return;
       if (!cid) { loadingRef.current = false; return; }
       setConvId(cid);
@@ -106,7 +93,7 @@ function Chat() {
           else if (row.user_id === otherId) setOtherAllow(allow);
         })
       .subscribe();
-    const poll = window.setInterval(() => { void loadMessages(convId); }, 3000);
+    const poll = window.setInterval(() => { void loadMessages(convId); }, 4000);
     return () => { window.clearInterval(poll); supabase.removeChannel(ch); };
   }, [convId, session, otherId]);
 

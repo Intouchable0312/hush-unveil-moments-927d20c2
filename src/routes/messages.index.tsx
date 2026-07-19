@@ -30,7 +30,7 @@ function MessagesList() {
   const reload = async () => {
     if (!session) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any).rpc("list_my_conversations", { _user: session.user.id });
+    const { data, error } = await (supabase as any).rpc("list_my_conversations");
     if (error) { console.error("[messages] rpc error", error); setConvs([]); return; }
     const unique = new Map<string, Row>();
     ((data ?? []) as Row[]).forEach((row) => {
@@ -46,12 +46,11 @@ function MessagesList() {
     if (!session) return;
     const uid = session.user.id;
     const ch = supabase.channel(`msg-list-${uid}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, reload)
       .on("postgres_changes", { event: "*", schema: "public", table: "conversations", filter: `fan_id=eq.${uid}` }, reload)
       .on("postgres_changes", { event: "*", schema: "public", table: "conversations", filter: `creator_id=eq.${uid}` }, reload)
       .on("postgres_changes", { event: "*", schema: "public", table: "conversation_settings", filter: `user_id=eq.${uid}` }, reload)
       .subscribe();
-    const poll = window.setInterval(reload, 3500);
+    const poll = window.setInterval(reload, 5000);
     return () => { window.clearInterval(poll); supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
