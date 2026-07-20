@@ -79,9 +79,40 @@
 
 @layer base {
   * { border-color: var(--color-border); }
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
   html, body { background-color: var(--color-background); color: var(--color-foreground); }
-  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  /* Prevent iOS/Android pinch-zoom & double-tap zoom on interactive elements */
+  button, a, input, textarea, select { touch-action: manipulation; }
 }
+
+/* Fixed chrome heights (header + bottom nav) */
+:root {
+  --hush-header-h: 4rem;
+  --hush-nav-h: 5rem;
+}
+
+/* Search route slide-in / slide-out */
+@keyframes search-slide-in {
+  0% { transform: translateY(24px) scale(0.985); opacity: 0; filter: blur(6px); }
+  100% { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
+}
+@keyframes search-slide-out {
+  0% { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
+  100% { transform: translateY(24px) scale(0.985); opacity: 0; filter: blur(6px); }
+}
+.animate-search-in { animation: search-slide-in 0.42s cubic-bezier(.2,.8,.2,1) both; }
+.animate-search-out { animation: search-slide-out 0.32s cubic-bezier(.4,0,.6,1) both; }
 
 /* Soft transitions everywhere */
 * { transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, transform 0.25s ease, opacity 0.25s ease; }
