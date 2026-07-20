@@ -87,7 +87,9 @@ function Shell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const showBackdrop = logoPhase === "cover" || !ready;
-  const target: "corner" | "auth" = session ? "corner" : "auth";
+  const isAuthRoute = pathname === "/auth";
+  const isSearchRoute = pathname === "/search";
+  const target: "corner" | "auth" = session && !isAuthRoute ? "corner" : "auth";
 
   if (ban) {
     return (
@@ -102,13 +104,24 @@ function Shell() {
     );
   }
 
-  const showNav = !!session && pathname !== "/auth" && logoPhase !== "cover";
+  const isLogged = !!session;
+  const showChrome = isLogged && !isAuthRoute && logoPhase !== "cover";
+  const showHeader = showChrome && !isSearchRoute;
+  const showNav = showChrome && !isSearchRoute;
 
   return (
-    <div className={`relative min-h-screen bg-background ${showNav ? "pb-32" : ""}`}>
+    <div className="fixed inset-0 flex flex-col bg-background">
       {/* Backdrop while drawing */}
       {showBackdrop && (
         <div className="fixed inset-0 z-[90] bg-background transition-opacity duration-500" />
+      )}
+
+      {/* Fixed header (logo lands here when connected) */}
+      {showHeader && (
+        <header
+          className="fixed inset-x-0 top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl"
+          style={{ height: "var(--hush-header-h)" }}
+        />
       )}
 
       {/* Persistent logo (drawing → settling → settled) */}
@@ -119,13 +132,18 @@ function Shell() {
         onSettled={() => setLogoPhase("done")}
       />
 
-      {/* App content, fades in as the logo settles */}
-      <div
-        className="transition-opacity duration-500"
-        style={{ opacity: logoPhase === "cover" ? 0 : 1, paddingTop: session && logoPhase !== "cover" ? "3.75rem" : undefined }}
+      {/* App content — the only scrollable region */}
+      <main
+        className="relative flex-1 overflow-y-auto overflow-x-hidden transition-opacity duration-500"
+        style={{
+          opacity: logoPhase === "cover" ? 0 : 1,
+          paddingTop: showHeader ? "var(--hush-header-h)" : undefined,
+          paddingBottom: showNav ? "var(--hush-nav-h)" : undefined,
+          WebkitOverflowScrolling: "touch",
+        }}
       >
         <Outlet />
-      </div>
+      </main>
 
       {showNav && <BottomNav />}
     </div>
