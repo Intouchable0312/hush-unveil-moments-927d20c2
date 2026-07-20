@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SuggestionsRouteImport } from './routes/suggestions'
 import { Route as SubscriptionsRouteImport } from './routes/subscriptions'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as PostRouteImport } from './routes/post'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -30,6 +31,11 @@ const SuggestionsRoute = SuggestionsRouteImport.update({
 const SubscriptionsRoute = SubscriptionsRouteImport.update({
   id: '/subscriptions',
   path: '/subscriptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PostRoute = PostRouteImport.update({
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/post': typeof PostRoute
+  '/search': typeof SearchRoute
   '/subscriptions': typeof SubscriptionsRoute
   '/suggestions': typeof SuggestionsRoute
   '/messages/$otherId': typeof MessagesOtherIdRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/post': typeof PostRoute
+  '/search': typeof SearchRoute
   '/subscriptions': typeof SubscriptionsRoute
   '/suggestions': typeof SuggestionsRoute
   '/messages/$otherId': typeof MessagesOtherIdRoute
@@ -118,6 +126,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/post': typeof PostRoute
+  '/search': typeof SearchRoute
   '/subscriptions': typeof SubscriptionsRoute
   '/suggestions': typeof SuggestionsRoute
   '/messages/$otherId': typeof MessagesOtherIdRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/post'
+    | '/search'
     | '/subscriptions'
     | '/suggestions'
     | '/messages/$otherId'
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/post'
+    | '/search'
     | '/subscriptions'
     | '/suggestions'
     | '/messages/$otherId'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/post'
+    | '/search'
     | '/subscriptions'
     | '/suggestions'
     | '/messages/$otherId'
@@ -177,6 +189,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   PostRoute: typeof PostRoute
+  SearchRoute: typeof SearchRoute
   SubscriptionsRoute: typeof SubscriptionsRoute
   SuggestionsRoute: typeof SuggestionsRoute
   MessagesOtherIdRoute: typeof MessagesOtherIdRoute
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/subscriptions'
       fullPath: '/subscriptions'
       preLoaderRoute: typeof SubscriptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/post': {
@@ -281,6 +301,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   PostRoute: PostRoute,
+  SearchRoute: SearchRoute,
   SubscriptionsRoute: SubscriptionsRoute,
   SuggestionsRoute: SuggestionsRoute,
   MessagesOtherIdRoute: MessagesOtherIdRoute,
