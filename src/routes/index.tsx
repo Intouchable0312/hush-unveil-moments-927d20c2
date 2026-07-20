@@ -270,20 +270,6 @@ function Home() {
   );
 }
 
-function CreatorResult({ creator, rank, onClose }: { creator: Creator; rank?: number; onClose: () => void }) {
-  return (
-    <L to={`/u/${creator.username ?? ""}`} onClick={onClose} className="flex items-center gap-3 rounded-2xl p-2 hover:bg-secondary">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-bold">
-        {creator.avatar_url ? <SignedImage path={creator.avatar_url} className="h-full w-full object-cover" /> : rank ?? ""}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">@{creator.username ?? "—"}</p>
-        {creator.hashtags?.length > 0 && <p className="truncate text-xs text-muted-foreground">{creator.hashtags.slice(0, 3).map((h) => `#${h}`).join(" ")}</p>}
-      </div>
-      {rank && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold">#{rank}</span>}
-    </L>
-  );
-}
 
 export function PostCard({ post, locked, ppvLocked, onUnlock }: { post: Post; locked: boolean; ppvLocked: boolean; onUnlock?: () => void }) {
   const { session } = useAuth();
