@@ -132,23 +132,7 @@ function Home() {
     return () => { supabase.removeChannel(ch); };
   }, [userId, profile]);
 
-  useEffect(() => {
-    if (!searchOpen || !userId) return;
-    let cancelled = false;
-    const t = window.setTimeout(async () => {
-      const term = q.trim();
-      if (!term) { setSearchResults([]); return; }
-      const safe = term.replace(/[%,]/g, "");
-      const like = `%${safe}%`;
-      const { data } = await supabase.from("profiles")
-        .select("id,username,avatar_url,hashtags")
-        .or(`username.ilike.${like},first_name.ilike.${like},last_name.ilike.${like}`)
-        .eq("is_creator", true)
-        .limit(20);
-      if (!cancelled) setSearchResults(((data ?? []) as Creator[]).map((c) => ({ ...c, score: 0 })));
-    }, 120);
-    return () => { cancelled = true; window.clearTimeout(t); };
-  }, [q, searchOpen, userId]);
+  // (search moved to dedicated /search route)
 
   const loadMorePosts = useCallback(async () => {
     if (!userId || loadingPageRef.current || !hasMore) return;
