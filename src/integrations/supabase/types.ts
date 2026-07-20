@@ -416,7 +416,51 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_public: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          cover_url: string | null
+          created_at: string | null
+          first_name: string | null
+          hashtags: string[] | null
+          id: string | null
+          is_ambassador: boolean | null
+          is_creator: boolean | null
+          last_name: string | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          cover_url?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          hashtags?: string[] | null
+          id?: string | null
+          is_ambassador?: boolean | null
+          is_creator?: boolean | null
+          last_name?: string | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          cover_url?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          hashtags?: string[] | null
+          id?: string | null
+          is_ambassador?: boolean | null
+          is_creator?: boolean | null
+          last_name?: string | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_overview_stats: { Args: never; Returns: Json }
