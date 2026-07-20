@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { SignedImage } from "@/components/SignedImage";
-import { Heart, Lock, Sparkles, ChevronDown, Search, X } from "lucide-react";
+import { Heart, Lock, Sparkles, ChevronDown, Search } from "lucide-react";
 import { PaymentSlider } from "@/components/PaymentSlider";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -61,9 +61,6 @@ function Home() {
   const [purchases, setPurchases] = useState<Set<string>>(new Set());
   const [creators, setCreators] = useState<Creator[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const [searchResults, setSearchResults] = useState<Creator[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const cursorRef = useRef(0);

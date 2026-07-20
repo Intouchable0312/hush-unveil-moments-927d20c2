@@ -43,7 +43,7 @@ function CreatorProfile() {
       const { data: p } = await supabase.from("posts").select("*").eq("creator_id", c.id).order("created_at", { ascending: false });
       setPosts(p ?? []);
       const { data: pl } = await supabase.from("subscription_plans").select("*").eq("creator_id", c.id).maybeSingle();
-      setPlan(pl);
+      setPlan(pl ?? { creator_id: c.id, price_monthly_cents: 1999, price_quarterly_cents: 3999, price_yearly_cents: 4999, currency: "eur" });
       if (session) {
         setCheckingSubscription(true);
         const { data: s } = await supabase
@@ -188,7 +188,7 @@ function CreatorProfile() {
           {/* Action bar */}
           {!isMe && (
             <div className="mt-5 space-y-2">
-              {!subbed && plan && price > 0 && (
+              {!subbed && !checkingSubscription && plan && price > 0 && (
                 <button onClick={() => setSubOpen(true)} className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-primary py-3.5 font-semibold text-primary-foreground shadow-lg transition hover:scale-[1.01] active:scale-[0.99]">
                   <span className="absolute inset-y-0 -left-1/2 w-1/2 skew-x-12 bg-white/15 transition-transform duration-700 group-hover:translate-x-[300%]" />
                   <Sparkles className="h-4 w-4" /> S'abonner — {(plan.price_monthly_cents / 100).toFixed(2)}€ / mois
