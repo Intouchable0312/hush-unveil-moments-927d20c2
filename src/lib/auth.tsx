@@ -41,12 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   const loadProfile = async (uid: string) => {
-    const [{ data: p }, { data: roles }, { data: b }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
+    const [{ data: pList }, { data: roles }, { data: b }] = await Promise.all([
+      (supabase as any).rpc("get_own_profile"),
       supabase.from("user_roles").select("role").eq("user_id", uid),
       supabase.from("bans").select("reason").eq("user_id", uid).maybeSingle(),
     ]);
-    setProfile(p as Profile | null);
+    const p = Array.isArray(pList) ? pList[0] : pList;
+    setProfile((p ?? null) as Profile | null);
     setIsAdmin(!!roles?.some((r) => r.role === "admin"));
     setBan(b ? { reason: b.reason } : null);
     if (p?.theme) {

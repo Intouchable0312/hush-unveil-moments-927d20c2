@@ -39,14 +39,14 @@ function Admin() {
 
   const reloadUsers = async () => {
     const [{ data }, { data: bans }, { data: roles }] = await Promise.all([
-      supabase.from("profiles").select("id,username,first_name,last_name,phone,is_creator,is_ambassador"),
+      (supabase as Any).rpc("admin_list_users"),
       supabase.from("bans").select("user_id,reason"),
       supabase.from("user_roles").select("user_id,role"),
     ]);
-    const banMap = new Map((bans ?? []).map((b) => [b.user_id, b.reason]));
+    const banMap = new Map((bans ?? []).map((b: Any) => [b.user_id, b.reason]));
     const roleMap = new Map<string, string[]>();
-    (roles ?? []).forEach((r) => { const a = roleMap.get(r.user_id) ?? []; a.push(r.role); roleMap.set(r.user_id, a); });
-    setUsers((data ?? []).map((u) => ({ ...u, banned: banMap.get(u.id), roles: roleMap.get(u.id) ?? [] })));
+    (roles ?? []).forEach((r: Any) => { const a = roleMap.get(r.user_id) ?? []; a.push(r.role); roleMap.set(r.user_id, a); });
+    setUsers(((data ?? []) as Any[]).map((u) => ({ ...u, banned: banMap.get(u.id), roles: roleMap.get(u.id) ?? [] })));
   };
 
   const reloadOverview = async () => {

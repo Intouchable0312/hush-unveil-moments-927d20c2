@@ -419,6 +419,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_list_users: {
+        Args: never
+        Returns: {
+          allow_fan_photos: boolean
+          avatar_url: string | null
+          bio: string | null
+          cover_url: string | null
+          created_at: string
+          first_name: string | null
+          hashtags: string[]
+          id: string
+          is_ambassador: boolean
+          is_creator: boolean
+          last_name: string | null
+          phone: string | null
+          stripe_account_id: string | null
+          theme: string
+          updated_at: string
+          username: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       admin_overview_stats: { Args: never; Returns: Json }
       admin_recent_purchases: {
         Args: { _limit?: number }
@@ -444,6 +471,33 @@ export type Database = {
       admin_user_stats: { Args: { _uid: string }; Returns: Json }
       find_conversation: { Args: { _a: string; _b: string }; Returns: string }
       get_or_create_conversation: { Args: { _other: string }; Returns: string }
+      get_own_profile: {
+        Args: never
+        Returns: {
+          allow_fan_photos: boolean
+          avatar_url: string | null
+          bio: string | null
+          cover_url: string | null
+          created_at: string
+          first_name: string | null
+          hashtags: string[]
+          id: string
+          is_ambassador: boolean
+          is_creator: boolean
+          last_name: string | null
+          phone: string | null
+          stripe_account_id: string | null
+          theme: string
+          updated_at: string
+          username: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
