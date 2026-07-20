@@ -217,20 +217,11 @@ function Home() {
         </button>
       </header>
 
-      {/* Search bar */}
-      <button onClick={() => setSearchOpen(true)} className="mb-4 flex w-full items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-left">
+      {/* Search bar — navigates to dedicated /search route */}
+      <L to="/search" className="mb-4 flex w-full items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-left">
         <Search className="h-4 w-4 text-muted-foreground" />
         <span className="flex-1 text-sm text-muted-foreground">Rechercher un créateur…</span>
-      </button>
-
-      <SearchPanel
-        open={searchOpen}
-        q={q}
-        setQ={setQ}
-        results={searchResults}
-        topCreators={creators}
-        onClose={() => setSearchOpen(false)}
-      />
+      </L>
 
       {showSuggest && (
         <div className="mb-6 rounded-3xl border border-border bg-card p-4">
@@ -275,44 +266,6 @@ function Home() {
           {loadingMore ? "Chargement des anciennes publications…" : hasMore ? "" : "Vous avez vu toutes les publications."}
         </div>
       )}
-    </div>
-  );
-}
-
-function SearchPanel({ open, q, setQ, results, topCreators, onClose }: { open: boolean; q: string; setQ: (v: string) => void; results: Creator[]; topCreators: Creator[]; onClose: () => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const t = window.setTimeout(() => inputRef.current?.focus(), 180);
-    return () => window.clearTimeout(t);
-  }, [open]);
-
-  return (
-    <div className={`fixed inset-0 z-50 bg-background transition-[transform,opacity] duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${open ? "translate-x-0 opacity-100" : "translate-x-full opacity-0 pointer-events-none"}`}>
-      <div className="mx-auto flex min-h-screen max-w-lg flex-col px-4 pb-8 pt-6">
-        <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2.5 shadow-sm">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un créateur…" className="flex-1 bg-transparent text-sm outline-none" />
-          {q && <button onClick={() => setQ("")} aria-label="Effacer"><X className="h-4 w-4 text-muted-foreground" /></button>}
-          <button onClick={onClose} className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">Fermer</button>
-        </div>
-
-        <div className="mt-5 min-h-[11rem] space-y-1">
-          {q.trim() && results.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">Aucun créateur trouvé</p>}
-          {results.map((c) => <CreatorResult key={c.id} creator={c} onClose={onClose} />)}
-        </div>
-
-        <div className="my-5 h-px bg-border" />
-
-        <div className="mb-3 flex items-center justify-between px-1">
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Top créatrices</p>
-          <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-        </div>
-        <div className="space-y-1">
-          {topCreators.map((c, i) => <CreatorResult key={c.id} creator={c} rank={i + 1} onClose={onClose} />)}
-        </div>
-      </div>
     </div>
   );
 }
