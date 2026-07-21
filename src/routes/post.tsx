@@ -21,6 +21,7 @@ function PostPage() {
   const [kind, setKind] = useState<Kind>("subscribers");
   const [priceCents, setPriceCents] = useState(500);
   const [err, setErr] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
 
   useEffect(() => { if (session === null) nav({ to: "/auth" as string as any }); }, [session, nav]);
 
@@ -29,8 +30,9 @@ function PostPage() {
   const publish = async () => {
     if (!file || !session) throw new Error("no file");
     setErr(null);
+    setProgress(0);
     try {
-      const path = await uploadMedia(file, session.user.id);
+      const path = await uploadMedia(file, session.user.id, setProgress);
       const hashtags = tagsInput.split(/[\s,]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean);
       const { error } = await supabase.from("posts").insert({
         creator_id: session.user.id,
@@ -48,6 +50,8 @@ function PostPage() {
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : String(e));
       throw e;
+    } finally {
+      setProgress(null);
     }
   };
 
