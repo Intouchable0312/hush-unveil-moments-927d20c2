@@ -109,7 +109,7 @@ function SearchPage() {
             Aucun créateur ne correspond à « {q} »
           </p>
         )}
-        {results.map((c) => <CreatorRow key={c.id} creator={c} onClose={close} />)}
+        {results.map((c) => <CreatorRow key={c.id} creator={c} />)}
       </div>
 
       {/* Divider */}
@@ -121,7 +121,7 @@ function SearchPage() {
         <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
       </div>
       <div className="space-y-1">
-        {top.map((c, i) => <CreatorRow key={c.id} creator={c} rank={i + 1} onClose={close} />)}
+        {top.map((c, i) => <CreatorRow key={c.id} creator={c} rank={i + 1} />)}
       </div>
     </div>
   );
