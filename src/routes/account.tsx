@@ -121,13 +121,16 @@ function Account() {
   const saveCropped = async (blob: Blob) => {
     if (!session) return;
     const file = new File([blob], `${cropKind}.jpg`, { type: "image/jpeg" });
-    const path = `${session.user.id}/${cropKind}-${crypto.randomUUID()}.jpg`;
-    const { error } = await supabase.storage.from("media").upload(path, file, { upsert: false });
-    if (error) { alert(error.message); return; }
-    const patch = cropKind === "avatar" ? { avatar_url: path } : { cover_url: path };
-    await supabase.from("profiles").update(patch).eq("id", session.user.id);
-
-    await refresh();
+    try {
+      const { uploadMedia } = await import("@/lib/media");
+      const path = await uploadMedia(file, session.user.id);
+      const patch = cropKind === "avatar" ? { avatar_url: path } : { cover_url: path };
+      const { error } = await supabase.from("profiles").update(patch).eq("id", session.user.id);
+      if (error) throw error;
+      await refresh();
+    } catch (e) {
+      alert("Enregistrement impossible : " + (e instanceof Error ? e.message : String(e)));
+    }
   };
 
   if (!profile) return <div className="p-10 text-center">Chargement…</div>;
