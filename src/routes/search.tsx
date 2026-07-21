@@ -127,11 +127,11 @@ function SearchPage() {
   );
 }
 
-function CreatorRow({ creator, rank, onClose }: { creator: Creator; rank?: number; onClose: () => void }) {
+function CreatorRow({ creator, rank }: { creator: Creator; rank?: number; onClose?: () => void }) {
   return (
     <L
-      to={`/u/${creator.username ?? ""}`}
-      onClick={onClose}
+      to="/u/$username"
+      params={{ username: creator.username ?? "" }}
       className="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-secondary"
     >
       <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-bold text-muted-foreground">
