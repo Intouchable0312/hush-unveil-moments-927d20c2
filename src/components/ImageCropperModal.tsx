@@ -1,7 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
-import { X } from "lucide-react";
-import { ActionSlider } from "./ActionSlider";
+import { X, Loader2 } from "lucide-react";
 
 type Props = {
   open: boolean;
