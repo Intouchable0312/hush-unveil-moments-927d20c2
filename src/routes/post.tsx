@@ -21,6 +21,7 @@ function PostPage() {
   const [kind, setKind] = useState<Kind>("subscribers");
   const [priceCents, setPriceCents] = useState(500);
   const [err, setErr] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
 
   useEffect(() => { if (session === null) nav({ to: "/auth" as string as any }); }, [session, nav]);
 
@@ -29,8 +30,9 @@ function PostPage() {
   const publish = async () => {
     if (!file || !session) throw new Error("no file");
     setErr(null);
+    setProgress(0);
     try {
-      const path = await uploadMedia(file, session.user.id);
+      const path = await uploadMedia(file, session.user.id, setProgress);
       const hashtags = tagsInput.split(/[\s,]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean);
       const { error } = await supabase.from("posts").insert({
         creator_id: session.user.id,
@@ -48,6 +50,8 @@ function PostPage() {
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : String(e));
       throw e;
+    } finally {
+      setProgress(null);
     }
   };
 
@@ -111,7 +115,18 @@ function PostPage() {
 
       {err && <p className="mb-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">{err}</p>}
 
-      <ActionSlider label="Glissez pour publier" onConfirm={publish} disabled={!file} />
+      {progress !== null && (
+        <div className="mb-3 rounded-2xl border border-border bg-card p-3">
+          <div className="mb-1 flex justify-between text-xs font-medium">
+            <span>Envoi du média…</span><span className="tabular-nums">{progress}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-secondary">
+            <div className="h-full bg-foreground transition-all duration-150" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      )}
+
+      <ActionSlider label="Glissez pour publier" onConfirm={publish} disabled={!file || progress !== null} />
     </div>
   );
 }
