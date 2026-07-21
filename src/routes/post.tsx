@@ -115,7 +115,18 @@ function PostPage() {
 
       {err && <p className="mb-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">{err}</p>}
 
-      <ActionSlider label="Glissez pour publier" onConfirm={publish} disabled={!file} />
+      {progress !== null && (
+        <div className="mb-3 rounded-2xl border border-border bg-card p-3">
+          <div className="mb-1 flex justify-between text-xs font-medium">
+            <span>Envoi du média…</span><span className="tabular-nums">{progress}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-secondary">
+            <div className="h-full bg-foreground transition-all duration-150" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      )}
+
+      <ActionSlider label="Glissez pour publier" onConfirm={publish} disabled={!file || progress !== null} />
     </div>
   );
 }
