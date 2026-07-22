@@ -23,6 +23,7 @@ function Account() {
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropAspect, setCropAspect] = useState(1);
   const [cropKind, setCropKind] = useState<"avatar" | "cover">("avatar");
+  const [mediaProgress, setMediaProgress] = useState<number | null>(null);
   const [myPosts, setMyPosts] = useState<Array<{ id: string; media_url: string; visibility: string; ppv_price_cents: number; created_at: string; description: string | null }>>([]);
 
   useEffect(() => {
@@ -123,13 +124,16 @@ function Account() {
     const file = new File([blob], `${cropKind}.jpg`, { type: "image/jpeg" });
     try {
       const { uploadMedia } = await import("@/lib/media");
-      const path = await uploadMedia(file, session.user.id);
+      setMediaProgress(0);
+      const path = await uploadMedia(file, session.user.id, setMediaProgress, "profiles");
       const patch = cropKind === "avatar" ? { avatar_url: path } : { cover_url: path };
       const { error } = await supabase.from("profiles").update(patch).eq("id", session.user.id);
       if (error) throw error;
       await refresh();
     } catch (e) {
       alert("Enregistrement impossible : " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setMediaProgress(null);
     }
   };
 
@@ -281,6 +285,7 @@ function Account() {
         aspect={cropAspect}
         onClose={() => setCropFile(null)}
         onSave={saveCropped}
+        progress={mediaProgress}
         title={cropKind === "avatar" ? "Recadrer la photo de profil" : "Recadrer la bannière"}
       />
     </div>

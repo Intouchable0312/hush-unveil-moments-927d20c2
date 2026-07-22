@@ -139,7 +139,7 @@ function Chat() {
     if (!pendingFile || !session) return;
     setProgress(0);
     try {
-      const path = await uploadMedia(pendingFile, session.user.id, setProgress);
+      const path = await uploadMedia(pendingFile, session.user.id, setProgress, "messages");
       await insertMessage(text.trim() || null, path, pendingPriceCents);
       setText("");
       cancelPhoto();

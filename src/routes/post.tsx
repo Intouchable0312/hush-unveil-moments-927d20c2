@@ -32,7 +32,7 @@ function PostPage() {
     setErr(null);
     setProgress(0);
     try {
-      const path = await uploadMedia(file, session.user.id, setProgress);
+      const path = await uploadMedia(file, session.user.id, setProgress, "posts");
       const hashtags = tagsInput.split(/[\s,]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean);
       const { error } = await supabase.from("posts").insert({
         creator_id: session.user.id,
