@@ -161,7 +161,7 @@ function Chat() {
   };
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-9rem)] max-w-lg flex-col">
+    <div className="mx-auto flex h-full max-w-lg flex-col">
       {/* Header */}
       <header className="flex items-center gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-md">
         <L to="/messages" className="rounded-full p-1.5 hover:bg-secondary" aria-label="Retour">
