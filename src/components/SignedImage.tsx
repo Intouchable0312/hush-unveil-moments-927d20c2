@@ -3,15 +3,26 @@ import { signedUrl } from "@/lib/media";
 
 export function SignedImage({ path, alt, className, blurred }: { path: string; alt?: string; className?: string; blurred?: boolean }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
+    setFailed(false);
     if (blurred) { setUrl(null); return; }
     let ok = true;
-    signedUrl(path).then((u) => { if (ok) setUrl(u); });
+    signedUrl(path).then((u) => { if (ok) { setUrl(u); setFailed(!u); } });
     return () => { ok = false; };
   }, [path, blurred]);
   if (blurred) return <LockedMediaPreview className={className} />;
-  if (!url) return <div className={`bg-muted animate-pulse ${className ?? ""}`} />;
-  return <img src={url} alt={alt ?? ""} className={className ?? ""} draggable={false} />;
+  if (!url && !failed) return <div className={`bg-muted animate-pulse ${className ?? ""}`} />;
+  if (!url || failed) return <MediaFallback className={className} />;
+  return <img src={url} alt={alt ?? ""} className={className ?? ""} draggable={false} onError={() => setFailed(true)} />;
+}
+
+function MediaFallback({ className }: { className?: string }) {
+  return (
+    <div className={`flex items-center justify-center bg-muted text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ${className ?? ""}`}>
+      Média
+    </div>
+  );
 }
 
 function LockedMediaPreview({ className }: { className?: string }) {

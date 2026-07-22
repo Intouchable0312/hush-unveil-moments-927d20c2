@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Cropper, { type Area } from "react-easy-crop";
 import { X, Check, Loader2 } from "lucide-react";
 
@@ -9,6 +10,7 @@ type Props = {
   onClose: () => void;
   onSave: (blob: Blob) => void | Promise<void>;
   title?: string;
+  progress?: number | null;
 };
 
 async function getCroppedBlob(imageSrc: string, area: Area): Promise<Blob> {
@@ -28,7 +30,7 @@ async function getCroppedBlob(imageSrc: string, area: Area): Promise<Blob> {
   );
 }
 
-export function ImageCropperModal({ open, file, aspect, onClose, onSave, title = "Recadrer" }: Props) {
+export function ImageCropperModal({ open, file, aspect, onClose, onSave, title = "Recadrer", progress = null }: Props) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [area, setArea] = useState<Area | null>(null);
@@ -57,14 +59,14 @@ export function ImageCropperModal({ open, file, aspect, onClose, onSave, title =
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[200] flex flex-col bg-background">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex h-[100dvh] flex-col overflow-hidden bg-background">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <button onClick={onClose} className="rounded-full p-2 hover:bg-secondary" aria-label="Fermer"><X className="h-5 w-5" /></button>
         <p className="text-sm font-semibold">{title}</p>
         <div className="w-9" />
       </div>
-      <div className="relative flex-1 bg-black">
+      <div className="relative min-h-0 flex-1 bg-black">
         <Cropper
           image={url}
           crop={crop}
@@ -77,7 +79,7 @@ export function ImageCropperModal({ open, file, aspect, onClose, onSave, title =
           onCropComplete={onComplete}
         />
       </div>
-      <div className="space-y-4 border-t border-border bg-background p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+      <div className="shrink-0 space-y-4 border-t border-border bg-background p-4 pb-[calc(env(safe-area-inset-bottom)+5.75rem)] sm:pb-[calc(env(safe-area-inset-bottom)+1rem)]">
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">Zoom</span>
           <input
@@ -86,6 +88,12 @@ export function ImageCropperModal({ open, file, aspect, onClose, onSave, title =
             className="flex-1 accent-[var(--primary)]"
           />
         </div>
+        {progress !== null && (
+          <div>
+            <div className="mb-1 flex justify-between text-[11px] font-medium"><span>Upload…</span><span>{progress}%</span></div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-secondary"><div className="h-full bg-foreground transition-all" style={{ width: `${progress}%` }} /></div>
+          </div>
+        )}
         <div className="flex gap-2">
           <button onClick={onClose} disabled={saving} className="flex-1 rounded-full border border-border bg-card py-3 text-sm font-semibold disabled:opacity-50">
             Annuler
@@ -95,6 +103,7 @@ export function ImageCropperModal({ open, file, aspect, onClose, onSave, title =
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
