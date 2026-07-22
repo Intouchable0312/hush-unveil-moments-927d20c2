@@ -469,6 +469,10 @@ export type Database = {
         }[]
       }
       admin_user_stats: { Args: { _uid: string }; Returns: Json }
+      can_read_media_object: {
+        Args: { _object_name: string }
+        Returns: boolean
+      }
       find_conversation: { Args: { _a: string; _b: string }; Returns: string }
       get_or_create_conversation: { Args: { _other: string }; Returns: string }
       get_own_profile: {
