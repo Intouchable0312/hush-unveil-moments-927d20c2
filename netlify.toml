@@ -1,0 +1,15 @@
+[build]
+  command = "bun run build"
+  publish = "dist"
+
+# The SSR server produced by the Netlify Nitro preset.
+[functions]
+  directory = ".netlify/functions-internal"
+  node_bundler = "none"
+
+# Static files in `dist` are served first; everything else goes to the SSR server
+# (pages, /api/public/* routes, server functions).
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/server"
+  status = 200
