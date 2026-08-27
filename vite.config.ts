@@ -6,7 +6,13 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
+// Outside the Lovable sandbox (e.g. a Netlify CI build) we target Netlify Functions so the
+// TanStack Start SSR server actually runs there. Inside Lovable the sandbox overrides this
+// with its own Cloudflare preset, so both hosts keep working from the same config.
 export default defineConfig({
+  nitro: {
+    preset: process.env["NITRO_PRESET"] || (process.env["NETLIFY"] ? "netlify" : undefined),
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
